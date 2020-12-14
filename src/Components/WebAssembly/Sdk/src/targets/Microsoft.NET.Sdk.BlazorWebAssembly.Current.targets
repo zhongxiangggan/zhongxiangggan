@@ -472,7 +472,10 @@ Copyright (c) .NET Foundation. All rights reserved.
       <ResolvedFileToPublish Remove="@(_ResolvedSatelliteToPublish)" />
       <ResolvedFileToPublish Include="@(_ResolvedSatelliteToPublish)" />
 
+      <!--
+      For AoT compilation, we need the .a files
       <ResolvedFileToPublish Remove="@(ResolvedFileToPublish)" Condition="'%(Extension)' == '.a'" />
+      -->
 
       <ResolvedFileToPublish Remove="@(ResolvedFileToPublish)"
         Condition="'$(BlazorEnableTimeZoneSupport)' == 'false' AND '%(ResolvedFileToPublish.FileName)%(ResolvedFileToPublish.Extension)' == 'dotnet.timezones.blat'" />
