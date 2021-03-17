@@ -1622,6 +1622,10 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "testassets", "testassets", 
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "WinFormsTestApp", "src\Components\WebView\Platforms\WindowsForms\testassets\WinFormsTestApp\WinFormsTestApp.csproj", "{99EE7769-3C81-477B-B947-0A5CBCD5B27D}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "test", "test", "{F88D3C53-624F-4806-BC97-000AC62058EB}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Microsoft.AspNetCore.Components.WebView.E2ETests", "src\Components\WebView\test\WebView.E2ETests\Microsoft.AspNetCore.Components.WebView.E2ETests.csproj", "{54EE62F3-9FC0-4184-9142-91AA3FD70159}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -7669,6 +7673,18 @@ Global
 		{99EE7769-3C81-477B-B947-0A5CBCD5B27D}.Release|x64.Build.0 = Release|Any CPU
 		{99EE7769-3C81-477B-B947-0A5CBCD5B27D}.Release|x86.ActiveCfg = Release|Any CPU
 		{99EE7769-3C81-477B-B947-0A5CBCD5B27D}.Release|x86.Build.0 = Release|Any CPU
+		{54EE62F3-9FC0-4184-9142-91AA3FD70159}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{54EE62F3-9FC0-4184-9142-91AA3FD70159}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{54EE62F3-9FC0-4184-9142-91AA3FD70159}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{54EE62F3-9FC0-4184-9142-91AA3FD70159}.Debug|x64.Build.0 = Debug|Any CPU
+		{54EE62F3-9FC0-4184-9142-91AA3FD70159}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{54EE62F3-9FC0-4184-9142-91AA3FD70159}.Debug|x86.Build.0 = Debug|Any CPU
+		{54EE62F3-9FC0-4184-9142-91AA3FD70159}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{54EE62F3-9FC0-4184-9142-91AA3FD70159}.Release|Any CPU.Build.0 = Release|Any CPU
+		{54EE62F3-9FC0-4184-9142-91AA3FD70159}.Release|x64.ActiveCfg = Release|Any CPU
+		{54EE62F3-9FC0-4184-9142-91AA3FD70159}.Release|x64.Build.0 = Release|Any CPU
+		{54EE62F3-9FC0-4184-9142-91AA3FD70159}.Release|x86.ActiveCfg = Release|Any CPU
+		{54EE62F3-9FC0-4184-9142-91AA3FD70159}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -8470,6 +8486,8 @@ Global
 		{3F752B48-2936-4FCA-B0DC-4AB0F788F897} = {DCBBDB52-4A49-4141-8F4D-81C0FFFB7BD5}
 		{F0849E7E-61DB-4849-9368-9E7BC125DCB0} = {D4E9A2C5-0838-42DF-BC80-C829C4C9137E}
 		{99EE7769-3C81-477B-B947-0A5CBCD5B27D} = {F0849E7E-61DB-4849-9368-9E7BC125DCB0}
+		{F88D3C53-624F-4806-BC97-000AC62058EB} = {C445B129-0A4D-41F5-8347-6534B6B12303}
+		{54EE62F3-9FC0-4184-9142-91AA3FD70159} = {F88D3C53-624F-4806-BC97-000AC62058EB}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {3E8720B3-DBDD-498C-B383-2CC32A054E8F}

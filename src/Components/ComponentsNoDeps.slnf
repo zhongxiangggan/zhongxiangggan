@@ -45,6 +45,7 @@
       "src\\Components\\WebView\\Samples\\BlazorWpfApp\\BlazorWpfApp.csproj",
       "src\\Components\\WebView\\WebView\\src\\Microsoft.AspNetCore.Components.WebView.csproj",
       "src\\Components\\WebView\\WebView\\test\\Microsoft.AspNetCore.Components.WebView.Test.csproj",
+      "src\\Components\\WebView\\test\\WebView.E2ETests\\Microsoft.AspNetCore.Components.WebView.E2ETests.csproj",
       "src\\Components\\Web\\src\\Microsoft.AspNetCore.Components.Web.csproj",
       "src\\Components\\Web\\test\\Microsoft.AspNetCore.Components.Web.Tests.csproj",
       "src\\Components\\benchmarkapps\\Wasm.Performance\\ConsoleHost\\Wasm.Performance.ConsoleHost.csproj",
