@@ -6,10 +6,26 @@
   <PropertyGroup>
     <TargetFramework>$(DefaultNetCoreTargetFramework)</TargetFramework>
     <IsPackable>false</IsPackable>
+    <SignAssembly>false</SignAssembly>
+
+    <!-- Tests do not work on Helix or when bin/ directory is not in project directory due to undeclared dependency on test content. -->
+    <BaseOutputPath />
+
+    <OutputPath />
+
+    <!-- This project references the shared framework transitively. Prevent restore errors by setting this flag. -->
+    <GenerateErrorForMissingTargetingPacks>false</GenerateErrorForMissingTargetingPacks>
   </PropertyGroup>
 
   <ItemGroup>
     <Compile Include="$(SharedSourceRoot)Process\**\*.cs" LinkBase="Shared" />
+    <Compile Include="..\..\..\test\E2ETest\Tests\ComponentRenderingTest.cs" LinkBase="Shared" />
+    <Compile Include="..\..\..\test\E2ETest\Infrastructure\ServerTestBase.cs" LinkBase="Shared" />
+    <Compile Include="..\..\..\test\E2ETest\Infrastructure\WebDriverExtensions\**\*.cs" LinkBase="Shared" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\test\testassets\BasicTestApp\BasicTestApp.csproj" />
   </ItemGroup>
 
   <!-- Shared testing infrastructure for running E2E tests using selenium -->
