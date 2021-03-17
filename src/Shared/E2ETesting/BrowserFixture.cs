@@ -136,7 +136,7 @@ namespace Microsoft.AspNetCore.E2ETesting
 
         public Task InitializeAsync() => Task.CompletedTask;
 
-        private async Task<(IWebDriver browser, ILogs log)> CreateBrowserAsync(string context, ITestOutputHelper output)
+        protected virtual async Task<(IWebDriver browser, ILogs log)> CreateBrowserAsync(string context, ITestOutputHelper output)
         {
             var opts = new ChromeOptions();
 
