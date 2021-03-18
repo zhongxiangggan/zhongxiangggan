@@ -2,6 +2,9 @@
   "drivers": {
     "chrome": {
       "version" : "89.0.4389.23"
+    },
+    "chromiumedge": {
+      "version": "latest"
     }
   },
   "ignoreExtraDrivers": true

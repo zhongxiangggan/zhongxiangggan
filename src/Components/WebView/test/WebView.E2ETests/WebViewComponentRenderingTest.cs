@@ -9,6 +9,9 @@ using Microsoft.AspNetCore.Components.E2ETest.Tests;
 using Microsoft.AspNetCore.E2ETesting;
 using Microsoft.AspNetCore.Testing;
 using OpenQA.Selenium;
+using OpenQA.Selenium.Chrome;
+using OpenQA.Selenium.Edge;
+using OpenQA.Selenium.Remote;
 using Xunit;
 using Xunit.Abstractions;
 
@@ -35,7 +38,23 @@ namespace WebViewE2ETest
 
         protected override Task<(IWebDriver browser, ILogs log)> CreateBrowserAsync(string context, ITestOutputHelper output)
         {
-            return base.CreateBrowserAsync(context, output);
+            // https://github.com/MicrosoftEdge/WebView2Feedback/issues/510#issuecomment-746785880
+            var opts = new EdgeOptions { UseWebView = true, UseChromium = true };
+            var root = "(omitted)";
+            opts.BinaryLocation = root + @"\artifacts\bin\WinFormsTestApp\Debug\net6.0-windows\WinFormsTestApp.exe";
+            var service = EdgeDriverService.CreateChromiumService(
+                root + @"\src\Components\WebView\test\WebView.E2ETests\node_modules\selenium-standalone\.selenium\chromiumedgedriver\latest-x64-msedgedriver_bin",
+                opts.BinaryLocation);
+            var driver = new EdgeDriverWithLogs(service, opts);
+            var logs = new RemoteLogs(driver);
+            return Task.FromResult(((IWebDriver)driver, (ILogs)logs));
+        }
+
+        private class EdgeDriverWithLogs : EdgeDriver, ISupportsLogs
+        {
+            public EdgeDriverWithLogs(EdgeDriverService service, EdgeOptions options) : base(service, options)
+            {
+            }
         }
     }
 }
@@ -45,7 +64,8 @@ namespace Microsoft.AspNetCore.Components.E2ETest.Infrastructure.ServerFixtures
 {
     public class ServerFixture
     {
-        public Uri RootUri { get; } = new Uri("https://0.0.0.0/");
+        // For some reason, Selenium refuses to navigate to https://0.0.0.0/, saying it's not a valid URL
+        public Uri RootUri { get; } = new Uri("https://microsoft.com/");
     }
 
     public class ToggleExecutionModeServerFixture<TClientProgram> : ServerFixture
