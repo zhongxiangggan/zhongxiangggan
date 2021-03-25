@@ -1,0 +1,62 @@
+@page "/LocationChangingCancel"
+
+@using Microsoft.JSInterop
+@using Microsoft.AspNetCore.Components.Routing
+
+@inject IJSRuntime JSRuntime
+@inject NavigationManager NavigationManager
+@inject NavigationLifecycle NavigationLifecycle
+@implements IDisposable
+@implements IHandleLocationChanging
+
+<button id="test-button" @onclick=@( () => NavigationManager.NavigateTo("LocationChangingStart"))>Navigate</button>
+<button id="test-button-gotoexternal" @onclick=@( () => NavigationManager.NavigateTo("www.google.com"))>Navigate external</button>
+<button id="test-button-gotoinvalid" @onclick=@( () => NavigationManager.NavigateTo("thispagedoesnotexist"))>Navigate invalid</button>
+<button id="test-button-forceload" @onclick=@( () => NavigationManager.NavigateTo("LocationChangingStart", true))>Navigate forced</button>
+<a id="test-link" href="LocationChangingStart">Can We</a>>
+<a id="test-link-gotoexternal" href="www.google.com">Can We go external</a>>
+<a id="test-link-gotoinvalid" href="thispagedoesnotexist">Can We go invalid</a>>
+
+<input id="test-shoulddelay" type="checkbox" @bind="@shouldDelay" />
+
+<span id="test-info">@UrlLocation</span>
+<button id="test-enable" @onclick=@( () => cancel = false)>Enable navigation</button>
+
+Can@(cancel ? " Not" : "") Navigate
+
+@code{
+    string UrlLocation;
+    bool shouldDelay = false;
+    bool cancel = true;
+
+    protected override void OnInitialized()
+    {
+        UrlLocation = NavigationManager.Uri;
+        NavigationLifecycle.LocationChanged += OnLocationChanged;
+        NavigationLifecycle.LocationWillChange.Add(MyLocationWillChangeHandler);
+    }
+
+    void IDisposable.Dispose()
+    {
+        NavigationManager.RemoveLocationChangingHandler(MyLocationWillChangeHandler);
+        NavigationLifecycle.LocationWillChange.Remove(OnLocationChanged);
+    }
+
+    void OnLocationChanged(object sender, LocationChangedEventArgs e)
+    {
+        UrlLocation = NavigationManager.Uri;
+        StateHasChanged();
+    }
+
+    private MyLocationWillChangeHandler : LocationWillChangeHandler
+    {
+        public void Invoke(NavigationLifecycleArgs args)
+        {
+            if (string.IsNullOrEmpty(currentValue))
+            {
+                args.CurrentState.CancelNavigation();
+            }
+        }
+    } 
+
+}

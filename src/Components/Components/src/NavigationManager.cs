@@ -2,6 +2,8 @@
 // Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
 
 using System;
+using System.Collections.Generic;
+using System.Threading.Tasks;
 using Microsoft.AspNetCore.Components.Routing;
 
 namespace Microsoft.AspNetCore.Components
@@ -29,6 +31,12 @@ namespace Microsoft.AspNetCore.Components
         }
 
         private EventHandler<LocationChangedEventArgs>? _locationChanged;
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <returns></returns>
+        public List<LocationWillChangeHandler> LocationWillChange { get; set; } = new();
 
         // For the baseUri it's worth storing as a System.Uri so we can do operations
         // on that type. System.Uri gives us access to the original string anyway.
@@ -208,6 +216,18 @@ namespace Microsoft.AspNetCore.Components
             catch (Exception ex)
             {
                 throw new LocationChangeException("An exception occurred while dispatching a location changed event.", ex);
+            }
+        }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="args"></param>
+        protected async ValueTask NotifyLocationWillChange(NavigationLifecycleArgs args)
+        {
+            foreach (var locationWillChange in LocationWillChange)
+            {
+                await locationWillChange.InvokeAsync(args);
             }
         }
 
