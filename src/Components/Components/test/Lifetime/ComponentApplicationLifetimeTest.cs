@@ -126,6 +126,37 @@ namespace Microsoft.AspNetCore.Components
         }
 
         [Fact]
+        public async Task PersistStateAsync_CallbacksAreRemovedWhenSubscriptionsAreDisposed()
+        {
+            // Arrange
+            var state = new Dictionary<string, ReadOnlySequence<byte>>();
+            var store = new TestStore(state);
+            var lifetime = new ComponentStatePersistenceManager(NullLogger<ComponentStatePersistenceManager>.Instance);
+            var renderer = new TestRenderer();
+
+            var sequence = new List<int> { };
+
+            var tcs = new TaskCompletionSource();
+            var tcs2 = new TaskCompletionSource();
+
+            var subscription1 = lifetime.State.RegisterOnPersisting(async () => { sequence.Add(1); await tcs.Task; sequence.Add(3); });
+            var subscription2 = lifetime.State.RegisterOnPersisting(async () => { sequence.Add(2); await tcs2.Task; sequence.Add(4); });
+
+            // Act
+            subscription1.Dispose();
+            subscription2.Dispose();
+
+            var persistTask = lifetime.PersistStateAsync(store, renderer);
+            tcs.SetResult();
+            tcs2.SetResult();
+
+            await persistTask;
+
+            // Assert
+            Assert.Empty(sequence);
+        }
+
+        [Fact]
         public async Task PersistStateAsync_ContinuesInvokingPauseCallbacksDuringPersistIfACallbackThrows()
         {
             // Arrange
