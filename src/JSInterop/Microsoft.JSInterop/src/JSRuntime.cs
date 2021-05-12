@@ -5,6 +5,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
+using System.IO;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
@@ -39,6 +40,7 @@ namespace Microsoft.JSInterop
                 {
                     new DotNetObjectReferenceJsonConverterFactory(this),
                     new JSObjectReferenceJsonConverter(this),
+                    new JSDataReferenceJsonConverter(this),
                 }
             };
         }
@@ -173,6 +175,23 @@ namespace Microsoft.JSInterop
         protected internal abstract void EndInvokeDotNet(
             DotNetInvocationInfo invocationInfo,
             in DotNetInvocationResult invocationResult);
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="jsObject"></param>
+        /// <param name="maxLength"></param>
+        /// <param name="cancellationToken"></param>
+        /// <returns></returns>
+        protected internal virtual Stream ReadJSDataAsStream(IJSObjectReference jsObject, long maxLength, CancellationToken cancellationToken)
+        {
+            // The reason it's virtual and not abstract is just for back-compat
+
+            // JSRuntime subclasses should override this method, and implement their own system for returning a Stream
+            // representing the contents of the IJSObjectReference (whose value on the JS side will be an ArrayBufferLike).
+            // The transport mechanism will be completely different between, say, Server and WebAssembly.
+            throw new NotSupportedException("The current JavaScript runtime does not support reading data streams.");
+        }
 
         [UnconditionalSuppressMessage("ReflectionAnalysis", "IL2072:RequiresUnreferencedCode", Justification = "We enforce trimmer attributes for JSON deserialized types on InvokeAsync.")]
         internal void EndInvokeJS(long taskId, bool succeeded, ref Utf8JsonReader jsonReader)

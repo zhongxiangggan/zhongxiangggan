@@ -1,5 +1,30 @@
 ﻿@page "/"
+@inject IJSRuntime JS
 
-<h1>Hello, world!</h1>
+<h1>Hello, world! [@message]</h1>
 
 Welcome to your new app.
+
+<button @onclick="GetSomeData">Get it</button>
+
+@code {
+    string? message = string.Empty;
+
+    async Task GetSomeData()
+    {
+        message = "Starting";
+        StateHasChanged();
+        var data = await JS.InvokeAsync<IJSDataReference>("getSomeData");
+
+        message = "Opening stream";
+        StateHasChanged();
+        using var stream = data.OpenReadStream(maxAllowedSize: int.MaxValue);
+
+        message = "Copying into memory";
+        StateHasChanged();
+        using var mem = new System.IO.MemoryStream();
+        await stream.CopyToAsync(mem);
+
+        message = "Copied: " + mem.Length;
+    }
+}

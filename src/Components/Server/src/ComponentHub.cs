@@ -2,6 +2,8 @@
 // Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
 
 using System;
+using System.Buffers;
+using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Components.Server.Circuits;
@@ -242,6 +244,9 @@ namespace Microsoft.AspNetCore.Components.Server
 
             _ = circuitHost.OnLocationChangedAsync(uri, intercepted);
         }
+
+        public Task SupplyJSDataStream(IAsyncEnumerable<byte[]> subject, string streamId, long length)
+            => RemoteJSDataStream.SupplyData(subject, streamId, length);
 
         // We store the CircuitHost through a *handle* here because Context.Items is tied to the lifetime
         // of the connection. It's possible that a misbehaving client could cause disposal of a CircuitHost

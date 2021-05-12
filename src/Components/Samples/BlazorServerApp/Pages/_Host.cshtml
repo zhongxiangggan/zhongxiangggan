@@ -23,6 +23,13 @@
                 configureSignalR: builder => builder.configureLogging("debug") // LogLevel.Debug
             });
         })()
+
+        function getSomeData() {
+            // Make some fake data
+            var data = new Uint8Array(10000000);
+            
+            return data;
+        }
     </script>
 </body>
 </html>

@@ -2,6 +2,7 @@
 // Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
 
 using System;
+using System.Buffers;
 using System.IO;
 using MessagePack;
 using Microsoft.AspNetCore.SignalR.Protocol;
@@ -33,6 +34,21 @@ namespace Microsoft.AspNetCore.Components.Server.BlazorPack
                 else if (type == typeof(float))
                 {
                     return reader.ReadSingle();
+                }
+                else if (type == typeof(ReadOnlySequence<byte>))
+                {
+                    // This is how I think it should work, but sometimes the memory seems to get corrupted.
+                    // The "await foreach (var chunk in subject)" code in RemoteJSDataStream sometimes gets
+                    // chunks with negative lengths. So, this is not actually used in this proof-of-concept.
+                    return reader.ReadBytes() ?? null;
+                }
+                else if (type == typeof(byte[]))
+                {
+                    // This is a workaround for the problem above. It's a bit lame to use ToArray like this
+                    // as it means copying each chunk in memory an extra time. Maybe there's a good reason
+                    // why it's unavoidable - not sure.
+                    var seq = reader.ReadBytes();
+                    return seq.HasValue ? seq.Value.ToArray() : null;
                 }
             }
             catch (Exception ex)

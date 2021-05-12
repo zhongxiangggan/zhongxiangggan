@@ -1,4 +1,7 @@
 #nullable enable
+Microsoft.JSInterop.IJSDataReference
+Microsoft.JSInterop.IJSDataReference.OpenReadStream(long maxAllowedSize = 512000, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.IO.Stream!
 Microsoft.JSInterop.Implementation.JSObjectReferenceJsonWorker
 static Microsoft.JSInterop.Implementation.JSObjectReferenceJsonWorker.ReadJSObjectReferenceIdentifier(ref System.Text.Json.Utf8JsonReader reader) -> long
 static Microsoft.JSInterop.Implementation.JSObjectReferenceJsonWorker.WriteJSObjectReference(System.Text.Json.Utf8JsonWriter! writer, Microsoft.JSInterop.Implementation.JSObjectReference! objectReference) -> void
+virtual Microsoft.JSInterop.JSRuntime.ReadJSDataAsStream(Microsoft.JSInterop.IJSObjectReference! jsObject, long maxLength, System.Threading.CancellationToken cancellationToken) -> System.IO.Stream!

@@ -2,7 +2,9 @@
 // Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
 
 using System;
+using System.IO;
 using System.Text.Json;
+using System.Threading;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -89,6 +91,9 @@ namespace Microsoft.AspNetCore.Components.Server.Circuits
 
             _clientProxy.SendAsync("JS.BeginInvokeJS", asyncHandle, identifier, argsJson, (int)resultType, targetInstanceId);
         }
+
+        protected override Stream ReadJSDataAsStream(IJSObjectReference jsObject, long maxLength, CancellationToken cancellationToken)
+            => new RemoteJSDataStream(this, jsObject, maxLength, cancellationToken);
 
         public static class Log
         {

@@ -31,4 +31,28 @@ namespace Microsoft.JSInterop.Infrastructure
             JSObjectReferenceJsonWorker.WriteJSObjectReference(writer, (JSObjectReference)value);
         }
     }
+
+    internal sealed class JSDataReferenceJsonConverter : JsonConverter<IJSDataReference>
+    {
+        private readonly JSRuntime _jsRuntime;
+
+        public JSDataReferenceJsonConverter(JSRuntime jsRuntime)
+        {
+            _jsRuntime = jsRuntime;
+        }
+
+        public override bool CanConvert(Type typeToConvert)
+            => typeToConvert == typeof(IJSDataReference);
+
+        public override IJSDataReference? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+        {
+            var id = JSObjectReferenceJsonWorker.ReadJSObjectReferenceIdentifier(ref reader);
+            return new JSObjectReference(_jsRuntime, id);
+        }
+
+        public override void Write(Utf8JsonWriter writer, IJSDataReference value, JsonSerializerOptions options)
+        {
+            JSObjectReferenceJsonWorker.WriteJSObjectReference(writer, (JSObjectReference)value);
+        }
+    }
 }

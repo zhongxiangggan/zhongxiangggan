@@ -1,6 +1,6 @@
 import { DotNet } from '@microsoft/dotnet-js-interop';
 import { Blazor } from './GlobalExports';
-import { HubConnectionBuilder, HubConnection } from '@microsoft/signalr';
+import { HubConnectionBuilder, HubConnection, Subject as SignalRSubject } from '@microsoft/signalr';
 import { MessagePackHubProtocol } from '@microsoft/signalr-protocol-msgpack';
 import { showErrorNotification } from './BootErrors';
 import { shouldAutoStart } from './BootCommon';
@@ -120,6 +120,47 @@ async function initializeConnection(options: CircuitStartOptions, logger: Logger
   });
 
   Blazor._internal.forceCloseConnection = () => connection.stop();
+
+  Blazor._internal.sendJSDataStream = async (data: ArrayBufferView, streamId: string) => {
+    const subject = new SignalRSubject();
+    await connection.send('SupplyJSDataStream', subject, streamId, data.byteLength);
+
+    // Run the rest in the background, without delaying the completion of the call to sendJSDataStream
+    // otherwise we'll deadlock (.NET can't begin reading until this completes, but it won't complete
+    // because nobody's reading the pipe)
+    (async function() {
+      try {
+        const chunkSize = 1024; // TODO: Should this be closer to the SignalR max message size?
+        let position = 0;
+        while (position < data.byteLength) {
+          // TODO: Doesn't the JS side receive any backpressure indication? We're just pushing it all here.
+          // TODO: What about cancellation? If the .NET-side JSDataStream gets disposed, then ideally we'd
+          //       receive a message telling us to stop processing the stream with that streamId, and would
+          //       stop sending the data.
+          const nextChunkSize = Math.min(chunkSize, data.byteLength - position);
+          console.log(`Sending a chunk of length ${nextChunkSize}`);
+          const nextChunkData = new Uint8Array(data.buffer, data.byteOffset + position, nextChunkSize);
+          subject.next(nextChunkData);
+          position += nextChunkSize;
+
+          // Somehow we need to delay sending the next item until the actual network transfer for the preceding
+          // one completed. Otherwise we'll just queue them all up instantly, which is too problematic because
+          // it prevents all other user interactions while the transfer is in progress. For example, this makes
+          // it impossible to have a "cancel" button. We need to give priority to all other events, which would
+          // be achievable if we didn't dispatch the next chunk until the previous one finished, because then
+          // any other events would already be queued.
+          //
+          // One way to do this would be *not* using SignalR streaming at all, but rather having a "pull"
+          // model like the existing <InputFile>. It would be slower, but the .NET side could request each
+          // chunk in turn once it's received the last one. That would also give cancellation for free.
+        }
+
+        subject.complete();
+      } catch(error) {
+        subject.error(error);
+      }
+    })();
+  };
 
   try {
     await connection.start();
