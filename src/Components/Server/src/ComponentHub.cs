@@ -245,8 +245,8 @@ namespace Microsoft.AspNetCore.Components.Server
             _ = circuitHost.OnLocationChangedAsync(uri, intercepted);
         }
 
-        public Task SupplyJSDataStream(IAsyncEnumerable<byte[]> subject, string streamId, long length)
-            => RemoteJSDataStream.SupplyData(subject, streamId, length);
+        public Task SupplyJSDataChunk(string streamId, ReadOnlySequence<byte> chunk, long totalLength, string error)
+            => RemoteJSDataStream.SupplyData(streamId, chunk, totalLength, error);
 
         // We store the CircuitHost through a *handle* here because Context.Items is tied to the lifetime
         // of the connection. It's possible that a misbehaving client could cause disposal of a CircuitHost

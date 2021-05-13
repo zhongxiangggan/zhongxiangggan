@@ -25,15 +25,16 @@ namespace Microsoft.AspNetCore.Components.Server.Circuits
         private readonly Stream _pipeReaderStream;
         private readonly Pipe _pipe;
         private bool _hasStarted;
+        private long _bytesRead;
 
-        public static Task SupplyData(IAsyncEnumerable<byte[]> data, string id, long length)
+        public static Task SupplyData(string streamId, ReadOnlySequence<byte> chunk, long totalLength, string error)
         {
-            if (!Instances.TryGetValue(Guid.Parse(id), out var instance))
+            if (!Instances.TryGetValue(Guid.Parse(streamId), out var instance))
             {
                 throw new InvalidOperationException("There is no data stream with the given identifier. It may have already been disposed.");
             }
 
-            return instance.SupplyData(data, length);
+            return instance.SupplyData(chunk, totalLength, error);
         }
 
         public RemoteJSDataStream(JSRuntime runtime, IJSObjectReference jsObject, long maxLength, CancellationToken cancellationToken)
@@ -46,7 +47,7 @@ namespace Microsoft.AspNetCore.Components.Server.Circuits
 
             Instances.Add(_streamId, this);
 
-            var maxBufferSize = 1024; // TODO: Make configurable?
+            var maxBufferSize = 100*1024; // TODO: Make configurable?
             _pipe = new Pipe(new PipeOptions(pauseWriterThreshold: maxBufferSize, resumeWriterThreshold: maxBufferSize));
             _pipeReaderStream = _pipe.Reader.AsStream();
         }
@@ -55,33 +56,42 @@ namespace Microsoft.AspNetCore.Components.Server.Circuits
         // data without having to copy it into a temporary buffer. But trying this gives strange errors -
         // sometimes the "chunk" variable below has a negative length, even though the logic in BlazorPackHubProtocolWorker
         // never returns a corrupted item as far as I can tell.
-        private async Task SupplyData(IAsyncEnumerable<byte[]> data, long length)
+        private async Task SupplyData(ReadOnlySequence<byte> chunk, long totalLength, string error)
         {
             try
             {
-                if (length > _maxLength)
+                if (!string.IsNullOrEmpty(error))
                 {
-                    throw new InvalidOperationException($"The incoming data stream of length {length} exceeds the maximum length {_maxLength}.");
+                    throw new InvalidOperationException($"An error occurred while reading the remote stream: {error}");
                 }
 
-                long bytesRead = 0;
-                await foreach (var chunk in data)
+                // TODO: This shouldn't be something we're checking on every chunk. It should be part
+                // of the initial "start transmission" call.
+                if (totalLength > _maxLength)
                 {
-                    bytesRead += chunk.Length;
-                    if (bytesRead > length)
-                    {
-                        throw new InvalidOperationException($"The incoming data stream declared a length {_maxLength}, but {bytesRead} bytes were read.");
-                    }
+                    throw new InvalidOperationException($"The incoming data stream of length {totalLength} exceeds the maximum length {_maxLength}.");
+                }
 
-                    const int maxChunkLength = 1024 * 1024; // TODO: Should we enforce a rule here, or do we just trust the SignalR max message size to enforce this? And does it do so for chunks within streams?
-                    if (chunk.Length > maxChunkLength)
-                    {
-                        throw new InvalidOperationException($"The incoming stream chunk of length {chunk.Length} exceeds the limit of {maxChunkLength}.");
-                    }
+                _bytesRead += chunk.Length;
 
-                    CopyToPipeWriter(chunk, _pipe.Writer);
-                    _pipe.Writer.Advance((int)chunk.Length);
-                    await _pipe.Writer.FlushAsync(_cancellationToken);
+                if (_bytesRead > totalLength)
+                {
+                    throw new InvalidOperationException($"The incoming data stream declared a length {_maxLength}, but {_bytesRead} bytes were read.");
+                }
+
+                const int maxChunkLength = 1024 * 1024; // TODO: Should we enforce a rule here, or do we just trust the SignalR max message size to enforce this? And does it do so for chunks within streams?
+                if (chunk.Length > maxChunkLength)
+                {
+                    throw new InvalidOperationException($"The incoming stream chunk of length {chunk.Length} exceeds the limit of {maxChunkLength}.");
+                }
+
+                CopyToPipeWriter(chunk, _pipe.Writer);
+                _pipe.Writer.Advance((int)chunk.Length);
+                await _pipe.Writer.FlushAsync(_cancellationToken);
+
+                if (_bytesRead == totalLength)
+                {
+                    await _pipe.Writer.CompleteAsync();
                 }
             }
             catch (Exception e)
@@ -89,11 +99,9 @@ namespace Microsoft.AspNetCore.Components.Server.Circuits
                 await _pipe.Writer.CompleteAsync(e);
                 return;
             }
-
-            await _pipe.Writer.CompleteAsync();
         }
 
-        private static void CopyToPipeWriter(byte[] chunk, PipeWriter writer)
+        private static void CopyToPipeWriter(ReadOnlySequence<byte> chunk, PipeWriter writer)
         {
             var pipeBuffer = writer.GetSpan((int)chunk.Length);
             chunk.CopyTo(pipeBuffer);

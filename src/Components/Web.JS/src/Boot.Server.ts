@@ -1,6 +1,6 @@
 import { DotNet } from '@microsoft/dotnet-js-interop';
 import { Blazor } from './GlobalExports';
-import { HubConnectionBuilder, HubConnection, Subject as SignalRSubject } from '@microsoft/signalr';
+import { HubConnectionBuilder, HubConnection } from '@microsoft/signalr';
 import { MessagePackHubProtocol } from '@microsoft/signalr-protocol-msgpack';
 import { showErrorNotification } from './BootErrors';
 import { shouldAutoStart } from './BootCommon';
@@ -122,15 +122,12 @@ async function initializeConnection(options: CircuitStartOptions, logger: Logger
   Blazor._internal.forceCloseConnection = () => connection.stop();
 
   Blazor._internal.sendJSDataStream = async (data: ArrayBufferView, streamId: string) => {
-    const subject = new SignalRSubject();
-    await connection.send('SupplyJSDataStream', subject, streamId, data.byteLength);
-
     // Run the rest in the background, without delaying the completion of the call to sendJSDataStream
     // otherwise we'll deadlock (.NET can't begin reading until this completes, but it won't complete
     // because nobody's reading the pipe)
-    (async function() {
+    setTimeout(async () => {
       try {
-        const chunkSize = 1024; // TODO: Should this be closer to the SignalR max message size?
+        const chunkSize = 31*1024; // TODO: Should this somehow auto-match the SignalR max message size, minus some overhead?
         let position = 0;
         while (position < data.byteLength) {
           // TODO: Doesn't the JS side receive any backpressure indication? We're just pushing it all here.
@@ -140,7 +137,12 @@ async function initializeConnection(options: CircuitStartOptions, logger: Logger
           const nextChunkSize = Math.min(chunkSize, data.byteLength - position);
           console.log(`Sending a chunk of length ${nextChunkSize}`);
           const nextChunkData = new Uint8Array(data.buffer, data.byteOffset + position, nextChunkSize);
-          subject.next(nextChunkData);
+
+          // The use of "invoke" (not "send") here is what prevents the JS side from queuing up chunks
+          // faster than the .NET side can receive them. It means that if there are other user interactions
+          // while the transfer is in progress, they would get inserted in the middle, so it would be
+          // possible to navigate away or cancel without first waiting for all the remaining chunks.
+          await connection.invoke('SupplyJSDataChunk', streamId, nextChunkData, data.byteLength, null);
           position += nextChunkSize;
 
           // Somehow we need to delay sending the next item until the actual network transfer for the preceding
@@ -154,12 +156,10 @@ async function initializeConnection(options: CircuitStartOptions, logger: Logger
           // model like the existing <InputFile>. It would be slower, but the .NET side could request each
           // chunk in turn once it's received the last one. That would also give cancellation for free.
         }
-
-        subject.complete();
       } catch(error) {
-        subject.error(error);
+        await connection.send('SupplyJSDataChunk', streamId, null, 0, error.toString());
       }
-    })();
+    }, 0);
   };
 
   try {
