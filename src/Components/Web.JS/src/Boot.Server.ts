@@ -126,6 +126,9 @@ async function initializeConnection(options: CircuitStartOptions, logger: Logger
     // otherwise we'll deadlock (.NET can't begin reading until this completes, but it won't complete
     // because nobody's reading the pipe)
     setTimeout(async () => {
+      const maxMillisecondsBetweenAcks = 500;
+      let numChunksUntilNextAck = 5;
+      let lastAckTime = new Date().valueOf();
       try {
         const chunkSize = 31*1024; // TODO: Should this somehow auto-match the SignalR max message size, minus some overhead?
         let position = 0;
@@ -138,11 +141,27 @@ async function initializeConnection(options: CircuitStartOptions, logger: Logger
           console.log(`Sending a chunk of length ${nextChunkSize}`);
           const nextChunkData = new Uint8Array(data.buffer, data.byteOffset + position, nextChunkSize);
 
-          // The use of "invoke" (not "send") here is what prevents the JS side from queuing up chunks
-          // faster than the .NET side can receive them. It means that if there are other user interactions
-          // while the transfer is in progress, they would get inserted in the middle, so it would be
-          // possible to navigate away or cancel without first waiting for all the remaining chunks.
-          await connection.invoke('SupplyJSDataChunk', streamId, nextChunkData, data.byteLength, null);
+
+          numChunksUntilNextAck--;
+          if (numChunksUntilNextAck > 1) {
+            // Most of the time just send and buffer within the network layer
+            await connection.send('SupplyJSDataChunk', streamId, nextChunkData, data.byteLength, null);
+          } else {
+            // But regularly, wait for an ACK, so other events can be interleaved
+            // The use of "invoke" (not "send") here is what prevents the JS side from queuing up chunks
+            // faster than the .NET side can receive them. It means that if there are other user interactions
+            // while the transfer is in progress, they would get inserted in the middle, so it would be
+            // possible to navigate away or cancel without first waiting for all the remaining chunks.
+            await connection.invoke('SupplyJSDataChunk', streamId, nextChunkData, data.byteLength, null);
+
+            // Estimate the number of chunks we should send before the next ack to achieve the desired
+            // interactivity rate
+            const timeNow = new Date().valueOf();
+            const msSinceAck = timeNow - lastAckTime;
+            lastAckTime = timeNow;
+            numChunksUntilNextAck = Math.max(1, Math.round(maxMillisecondsBetweenAcks / msSinceAck));
+          }
+
           position += nextChunkSize;
 
           // Somehow we need to delay sending the next item until the actual network transfer for the preceding
