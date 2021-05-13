@@ -12,6 +12,8 @@ Welcome to your new app.
 
     async Task GetSomeData()
     {
+        var stateTime = DateTime.Now;
+
         message = "Starting";
         StateHasChanged();
         var data = await JS.InvokeAsync<IJSDataReference>("getSomeData");
@@ -25,6 +27,6 @@ Welcome to your new app.
         using var mem = new System.IO.MemoryStream();
         await stream.CopyToAsync(mem);
 
-        message = "Copied: " + mem.Length;
+        message = $"Copied: {mem.Length} bytes in {DateTime.Now.Subtract(stateTime).TotalMilliseconds:F1}ms";
     }
 }
