@@ -29,6 +29,11 @@ Microsoft.AspNetCore.Components.Lifetime.IComponentApplicationStateStore.GetPers
 Microsoft.AspNetCore.Components.Lifetime.IComponentApplicationStateStore.PersistStateAsync(System.Collections.Generic.IReadOnlyDictionary<string!, byte[]!>! state) -> System.Threading.Tasks.Task!
 Microsoft.AspNetCore.Components.RenderHandle.IsHotReloading.get -> bool
 Microsoft.AspNetCore.Components.Rendering.RenderTreeBuilder.Dispose() -> void
+Microsoft.AspNetCore.Components.Routing.FromQueryAttribute
+Microsoft.AspNetCore.Components.Routing.FromQueryAttribute.FromQueryAttribute() -> void
+Microsoft.AspNetCore.Components.Routing.FromQueryAttribute.FromQueryAttribute(string! queryParameterName) -> void
+Microsoft.AspNetCore.Components.Routing.FromQueryAttribute.QueryParameterName.get -> string?
+Microsoft.AspNetCore.Components.Routing.NavigationManagerQueryStringExtensions
 Microsoft.AspNetCore.Components.Routing.Router.PreferExactMatches.get -> bool
 Microsoft.AspNetCore.Components.Routing.Router.PreferExactMatches.set -> void
 Microsoft.AspNetCore.Components.DynamicComponent
@@ -46,6 +51,9 @@ Microsoft.AspNetCore.Components.RenderTree.Renderer.GetEventArgsType(ulong event
 abstract Microsoft.AspNetCore.Components.ErrorBoundaryBase.OnErrorAsync(System.Exception! exception) -> System.Threading.Tasks.Task!
 override Microsoft.AspNetCore.Components.LayoutComponentBase.SetParametersAsync(Microsoft.AspNetCore.Components.ParameterView parameters) -> System.Threading.Tasks.Task!
 static Microsoft.AspNetCore.Components.ParameterView.FromDictionary(System.Collections.Generic.IDictionary<string!, object?>! parameters) -> Microsoft.AspNetCore.Components.ParameterView
+static Microsoft.AspNetCore.Components.Routing.NavigationManagerQueryStringExtensions.GetQueryParameter<T>(this Microsoft.AspNetCore.Components.NavigationManager! navigationManager, string! name) -> T?
+static Microsoft.AspNetCore.Components.Routing.NavigationManagerQueryStringExtensions.RemoveQueryParameter(this Microsoft.AspNetCore.Components.NavigationManager! navigationManager, string! name, bool replace = false) -> void
+static Microsoft.AspNetCore.Components.Routing.NavigationManagerQueryStringExtensions.SetQueryParameter<T>(this Microsoft.AspNetCore.Components.NavigationManager! navigationManager, string! name, T? value, bool replace = false) -> void
 virtual Microsoft.AspNetCore.Components.RenderTree.Renderer.DispatchEventAsync(ulong eventHandlerId, Microsoft.AspNetCore.Components.RenderTree.EventFieldInfo? fieldInfo, System.EventArgs! eventArgs) -> System.Threading.Tasks.Task!
 readonly Microsoft.AspNetCore.Components.RenderTree.RenderTreeEdit.RemovedAttributeName -> string?
 *REMOVED*Microsoft.AspNetCore.Components.CascadingValue<TValue>.Value.get -> TValue

@@ -7,6 +7,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
+using Microsoft.Extensions.Primitives;
 using static Microsoft.AspNetCore.Internal.LinkerFlags;
 
 namespace Microsoft.AspNetCore.Components.Routing
@@ -121,8 +122,47 @@ namespace Microsoft.AspNetCore.Components.Routing
                         parameters[UnusedRouteParameterNames[i]] = null;
                     }
                 }
+
+                AddQueryParameters(Handler, context.LocationAbsolute, ref parameters);
+
                 context.Handler = Handler;
                 context.Parameters = parameters;
+            }
+        }
+
+        private void AddQueryParameters(Type handler, string locationAbsolute, ref Dictionary<string, object> parameters)
+        {
+            Dictionary<string, string>? parsedQuery = null;
+
+            // Given a particular handler type, discover any parameters it would like to
+            // be populated from the querystring, and supply matching ones.
+            // TODO: Caching. Maybe don't even do this via reflection over properties, but consider a compile-time step
+            // that converts [Parameter, FromQuery] into some [RouteQueryParameter("queryParamName", "componentParamName")]
+            // attributes on the class. Tricky part with that is making it work with partial classes too.
+            foreach (var propertyInfo in handler.GetProperties())
+            {
+                var fromQueryAttributes = propertyInfo.GetCustomAttributes(typeof(FromQueryAttribute), false);
+                if (fromQueryAttributes.Length > 0)
+                {
+                    var attrib = (FromQueryAttribute)fromQueryAttributes[0];
+
+                    var queryParameterName = attrib.QueryParameterName ?? propertyInfo.Name;
+                    var componentParameterName = propertyInfo.Name;
+
+                    if (parsedQuery == null)
+                    {
+                        var uri = new Uri(locationAbsolute);
+                        parsedQuery = QueryHelpers.ParseQuery(uri.Query);
+                    }
+
+                    var valueToSupply = parsedQuery.TryGetValue(queryParameterName, out var stringValue)
+                        && NavigationManagerQueryStringExtensions.TryParseQueryParameter(stringValue, propertyInfo.PropertyType, out var parsedValue)
+                        ? parsedValue
+                        : null; // Like other route params, we must always supply the parameter even if null, otherwise you can't navigate from "some value" to "no value"
+
+                    parameters ??= new(StringComparer.OrdinalIgnoreCase);
+                    parameters[componentParameterName] = valueToSupply;
+                }
             }
         }
 

@@ -187,7 +187,7 @@ namespace Microsoft.AspNetCore.Components.Routing
 
             var locationPath = NavigationManager.ToBaseRelativePath(_locationAbsolute);
             locationPath = StringUntilAny(locationPath, _queryOrHashStartChar);
-            var context = new RouteContext(locationPath);
+            var context = new RouteContext(locationPath, _locationAbsolute);
             Routes.Route(context);
 
             if (context.Handler != null)

@@ -12,7 +12,7 @@ namespace Microsoft.AspNetCore.Components.Routing
     {
         private static readonly char[] Separator = new[] { '/' };
 
-        public RouteContext(string path)
+        public RouteContext(string path, string locationAbsolute)
         {
             // This is a simplification. We are assuming there are no paths like /a//b/. A proper routing
             // implementation would be more sophisticated.
@@ -22,9 +22,13 @@ namespace Microsoft.AspNetCore.Components.Routing
             {
                 Segments[i] = Uri.UnescapeDataString(Segments[i]);
             }
+
+            LocationAbsolute = locationAbsolute;
         }
 
         public string[] Segments { get; }
+
+        public string LocationAbsolute { get; }
 
         [DynamicallyAccessedMembers(Component)]
         public Type? Handler { get; set; }

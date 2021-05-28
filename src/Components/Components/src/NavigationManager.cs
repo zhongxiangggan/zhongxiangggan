@@ -84,6 +84,41 @@ namespace Microsoft.AspNetCore.Components
             }
         }
 
+        // This is a bit awkward, but if we want to be able to do two-way binding with querystring values,
+        // then we need a way of writing to them that also reflects the written state back instantly (without
+        // waiting for a round-trip to the browser and a notification about navigation). Otherwise on each
+        // keystroke you'll find the textbox reverts to its previous state until the navigation notification
+        // arrives.
+        //
+        // The approach in this POC is that GetQueryParameter uses the "current or pending URI" which is updated
+        // when navigation completes *or* when you ask for navigation to happen (e.g., when you call SetQueryParameter
+        // or NavigateTo with some URL that has a querystring).
+        //
+        // This approach has some drawbacks:
+        // [1] If you compare NavigationManager.GetQueryParameter return values and NavigationManager.Uri, they
+        //     will be inconsistent during the period between asking for navigation and completion of navigation.
+        // [2] If somehow the navigation doesn't happen (e.g., if we have some way of cancelling it), then the
+        //     GetQueryParameter results will be incorrect until the next navigation actually does happen.
+        //
+        // Another design that might be less confusing would be some kind of "query parameter accessor" object
+        // that you can obtain (e.g., NavigationManager.CreateQueryParameterAccessor(filter, replace: true)),
+        // which has a .Value property you can read and use with @bind. Each one of these accessors could hold
+        // its own "pending write" state to use as the value after you assign it until the next time the navigation
+        // manager raises a navigation notification. Even though that can also be inconsistent with .Uri, it feels
+        // more understandable because it's a self-contained gadget for writing changes. Each separate instance
+        // would only reflect its own state, so unrelated code that didn't write to the QS would never see an
+        // inconsistent state. The main drawback here is that it requires more user code to create and store these
+        // things in fields, instead of just operating directly on NavigationManager. The usage pattern is less
+        // satisfying.
+        //
+        // Yet another option would be half-way between these: we could track a single dictionary of pending
+        // querystring parameter writes, which we clear out on each navigation notification. The difference vs
+        // the implementation in this PR is that it only applies to things written through SetQueryParameter,
+        // and not NavigateTo calls. The possible advantage here is that if you're using NavigateTo to get to
+        // an unrelated page, then on the current render you wouldn't see the querystring values go weird
+        // because we wouldn't be reading back the next URL until the navigation actually happens.
+        internal string CurrentOrPendingUri { get; private set; } = default!;
+
         /// <summary>
         /// Navigates to the specified URI.
         /// </summary>
@@ -92,6 +127,8 @@ namespace Microsoft.AspNetCore.Components
         /// <param name="forceLoad">If true, bypasses client-side routing and forces the browser to load the new page from the server, whether or not the URI would normally be handled by the client-side router.</param>
         public void NavigateTo(string uri, bool forceLoad = false)
         {
+            CurrentOrPendingUri = uri;
+
             AssertInitialized();
             NavigateToCore(uri, forceLoad);
         }
@@ -131,6 +168,7 @@ namespace Microsoft.AspNetCore.Components
             // Setting BaseUri before Uri so they get validated.
             BaseUri = baseUri;
             Uri = uri;
+            CurrentOrPendingUri = Uri;
         }
 
         /// <summary>
@@ -201,6 +239,8 @@ namespace Microsoft.AspNetCore.Components
         /// </summary>
         protected void NotifyLocationChanged(bool isInterceptedLink)
         {
+            CurrentOrPendingUri = Uri;
+
             try
             {
                 _locationChanged?.Invoke(this, new LocationChangedEventArgs(_uri!, isInterceptedLink));
