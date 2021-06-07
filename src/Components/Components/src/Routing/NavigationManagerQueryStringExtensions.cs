@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Web;
 
 namespace Microsoft.AspNetCore.Components.Routing
 {
@@ -12,6 +13,16 @@ namespace Microsoft.AspNetCore.Components.Routing
         private delegate bool TryParseDelegate<T>(string input, out T result);
         private delegate bool TryParseUntypedDelegate(string input, out object? result);
         private delegate string FormatDelegate<T>(T value);
+
+        /// <summary>
+        /// </summary>
+        public static QueryBindable<T> Query<T>(this NavigationManager navigationManager, string name, bool replace = true)
+            => new QueryBindable<T>(navigationManager, name, replace);
+
+        /// <summary>
+        /// </summary>
+        public static QueryBindable<string> Query(this NavigationManager navigationManager, string name, bool replace = true)
+            => new QueryBindable<string>(navigationManager, name, replace);
 
         /// <summary>
         /// 
@@ -161,7 +172,7 @@ namespace Microsoft.AspNetCore.Components.Routing
         {
             { typeof(string), (FormatDelegate<string>)(value => value) },
             { typeof(bool), (FormatDelegate<bool>)(value => value.ToString()) },
-            { typeof(DateTime), (FormatDelegate<DateTime>)(value => value.ToString(CultureInfo.InvariantCulture)) },
+            { typeof(DateTime), (FormatDelegate<DateTime>)(value => value.ToString("s")) },
             { typeof(decimal), (FormatDelegate<decimal>)(value => value.ToString(CultureInfo.InvariantCulture)) },
             { typeof(double), (FormatDelegate<double>)(value => value.ToString(CultureInfo.InvariantCulture)) },
             { typeof(float), (FormatDelegate<float>)(value => value.ToString(CultureInfo.InvariantCulture)) },

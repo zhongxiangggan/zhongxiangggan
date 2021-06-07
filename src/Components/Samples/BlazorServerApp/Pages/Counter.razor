@@ -12,9 +12,24 @@
     <input @bind="FilterBindable" @bind:event="oninput" />
 </p>
 
+<p>
+    <input @bind="@(Nav.Query<string>("filter").Value)" @bind:event="oninput" />
+</p>
+
+<p>
+    <input @bind="@Nav.Query("filter").Value" @bind:event="oninput" />
+</p>
+
+<p>
+    [@StartDate]
+    <input type="date" @bind="@(Nav.Query<DateTime>("startdate").Value)" />
+</p>
+
+
 @code {
     [Parameter, FromQuery] public int Count { get; set; }
     [Parameter, FromQuery] public string? Filter { get; set; }
+    [Parameter, FromQuery] public DateTime StartDate { get; set; }
 
     string? FilterBindable
     {

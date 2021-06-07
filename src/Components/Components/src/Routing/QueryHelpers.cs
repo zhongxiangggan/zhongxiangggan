@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 using System.Text.Encodings.Web;
+using System.Web;
 
 namespace Microsoft.AspNetCore.Components.Routing
 {
@@ -104,67 +105,21 @@ namespace Microsoft.AspNetCore.Components.Routing
             return sb.ToString();
         }
 
-        /// <summary>
-        /// Parse a query string into its component key and value parts.
-        /// </summary>
-        /// <param name="queryString">The raw query string value, with or without the leading '?'.</param>
-        /// <returns>A collection of parsed keys and values, null if there are no entries.</returns>
-        public static Dictionary<string, string> ParseQuery(string queryString)
+        public static Dictionary<string, string> ParseQuery(string query)
         {
             var result = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-
-            if (string.IsNullOrEmpty(queryString) || queryString == "?")
+            var parsed = HttpUtility.ParseQueryString(query);
+            foreach (var key in parsed.AllKeys)
             {
-                return result;
-            }
-
-            int scanIndex = 0;
-            if (queryString[0] == '?')
-            {
-                scanIndex = 1;
-            }
-
-            int textLength = queryString.Length;
-            int equalIndex = queryString.IndexOf('=');
-            if (equalIndex == -1)
-            {
-                equalIndex = textLength;
-            }
-            while (scanIndex < textLength)
-            {
-                int delimiterIndex = queryString.IndexOf('&', scanIndex);
-                if (delimiterIndex == -1)
+                if (key != null)
                 {
-                    delimiterIndex = textLength;
-                }
-                if (equalIndex < delimiterIndex)
-                {
-                    while (scanIndex != equalIndex && char.IsWhiteSpace(queryString[scanIndex]))
+                    var item = parsed[key];
+                    if (item != null)
                     {
-                        ++scanIndex;
-                    }
-                    string name = queryString.Substring(scanIndex, equalIndex - scanIndex);
-
-                    string value = queryString.Substring(equalIndex + 1, delimiterIndex - equalIndex - 1);
-
-                    result[name] = value;
-
-                    equalIndex = queryString.IndexOf('=', delimiterIndex);
-                    if (equalIndex == -1)
-                    {
-                        equalIndex = textLength;
+                        result[key] = item;
                     }
                 }
-                else
-                {
-                    if (delimiterIndex > scanIndex)
-                    {
-                        result[queryString.Substring(scanIndex, delimiterIndex - scanIndex)] = string.Empty;
-                    }
-                }
-                scanIndex = delimiterIndex + 1;
             }
-
             return result;
         }
     }
