@@ -61,11 +61,8 @@ namespace Microsoft.Extensions.DependencyInjection
             ConfigureDefaultServices(services);
             AddMvcCoreServices(services);
 
-            if (environment?.IsDevelopment() ?? false)
-            {
-                services.TryAddEnumerable(
-                    ServiceDescriptor.Singleton<IActionDescriptorChangeProvider, HotReloadService>());
-            }
+            services.TryAddEnumerable(
+                ServiceDescriptor.Singleton<IActionDescriptorChangeProvider, HotReloadService>());
 
             var builder = new MvcCoreBuilder(services, partManager);
 

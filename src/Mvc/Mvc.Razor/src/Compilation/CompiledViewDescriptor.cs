@@ -102,5 +102,7 @@ namespace Microsoft.AspNetCore.Mvc.Razor.Compilation
         /// Gets the type of the compiled item.
         /// </summary>
         public Type? Type => Item?.Type;
+
+        internal string? OriginalName { get; set; }
     }
 }

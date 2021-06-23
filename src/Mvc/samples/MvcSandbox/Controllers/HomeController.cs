@@ -14,5 +14,15 @@ namespace MvcSandbox.Controllers
         {
             return View();
         }
+
+        [HttpGet("/foo")]
+        public IActionResult Foo()
+        {
+            var type = typeof(ControllerBase).Assembly.GetType("Microsoft.AspNetCore.Mvc.HotReload.HotReloadService");
+            var method = type.GetMethod("ClearCache", System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic);
+            method.Invoke(null, new object[] { null });
+
+            return Ok();
+        }
     }
 }

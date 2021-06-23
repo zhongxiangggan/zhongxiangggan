@@ -5,7 +5,11 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Linq;
+using System.Reflection;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Mvc.ApplicationParts;
+using Microsoft.AspNetCore.Razor.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Primitives;
 
@@ -19,6 +23,77 @@ namespace Microsoft.AspNetCore.Mvc.Razor.Compilation
         private readonly Dictionary<string, Task<CompiledViewDescriptor>> _compiledViews;
         private readonly ConcurrentDictionary<string, string> _normalizedPathCache;
         private readonly ILogger _logger;
+        private static Assembly? assembly;
+
+        public DefaultViewCompiler(ApplicationPartManager applicationPartManager, ILogger logger)
+            : this(GetViews(applicationPartManager), logger)
+        {
+            assembly = applicationPartManager.ApplicationParts.OfType<AssemblyPart>().First().Assembly;
+
+            HotReload.HotReloadService.ClearCacheEvent += () =>
+            {
+                _compiledViews.Clear();
+                var views = GetViews(applicationPartManager);
+                CreateCompiledViewLookup(_compiledViews, views, logger);
+            };
+        }
+
+        private static IList<CompiledViewDescriptor> GetViews(ApplicationPartManager applicationPartManager)
+        {
+            var feature = new ViewsFeature();
+            applicationPartManager.PopulateFeature(feature);
+
+            var result = new List<CompiledViewDescriptor>(feature.ViewDescriptors.Count);
+
+            if (assembly is not null)
+            {
+                var types = assembly.GetTypes();
+
+                Console.WriteLine($"Updated: {string.Join(",", types.Where(t => t.Name.Contains("#")).Select(t => t.FullName))}");
+            }
+
+            foreach (var view in feature.ViewDescriptors)
+            {
+                var type = view.Type!;
+                var originalName = view.OriginalName ?? type.FullName;
+                foreach (var value in Enumerable.Range(1, int.MaxValue))
+                {
+                    var newTypeName = originalName + "#" + value;
+                    Type? newType = null;
+                    if (assembly is not null)
+                    {
+                        var types = assembly.GetTypes();
+                        newType = types.FirstOrDefault(f => f.FullName == newTypeName);
+                    }
+
+                    if (newType is null)
+                    {
+                        break;
+                    }
+                    else
+                    {
+                        type = newType;
+                    }
+                }
+
+                if (view.Type == type)
+                {
+                    result.Add(view);
+                }
+                else
+                {
+                    Debug.Assert(view.Item is not null);
+                    var compiled = new CompiledViewDescriptor(
+                        new DefaultRazorCompiledItem(view.Item.Identifier, view.Item.Kind, view.Item.Metadata, type))
+                    {
+                        OriginalName = originalName
+                    };
+                    result.Add(compiled);
+                }
+            }
+
+            return result;
+        }
 
         public DefaultViewCompiler(
             IList<CompiledViewDescriptor> compiledViews,
@@ -45,19 +120,24 @@ namespace Microsoft.AspNetCore.Mvc.Razor.Compilation
                 compiledViews.Count,
                 StringComparer.OrdinalIgnoreCase);
 
+            CreateCompiledViewLookup(_compiledViews, compiledViews, logger);
+        }
+
+        private static void CreateCompiledViewLookup(Dictionary<string, Task<CompiledViewDescriptor>> compiledViewsLookup, IList<CompiledViewDescriptor> compiledViews, ILogger logger)
+        {
             foreach (var compiledView in compiledViews)
             {
                 logger.ViewCompilerLocatedCompiledView(compiledView.RelativePath);
 
-                if (!_compiledViews.ContainsKey(compiledView.RelativePath))
+                if (!compiledViewsLookup.ContainsKey(compiledView.RelativePath))
                 {
                     // View ordering has precedence semantics, a view with a higher precedence was not
                     // already added to the list.
-                    _compiledViews.Add(compiledView.RelativePath, Task.FromResult(compiledView));
+                    compiledViewsLookup.Add(compiledView.RelativePath, Task.FromResult(compiledView));
                 }
             }
 
-            if (_compiledViews.Count == 0)
+            if (compiledViewsLookup.Count == 0)
             {
                 logger.ViewCompilerNoCompiledViewsFound();
             }
@@ -110,6 +190,22 @@ namespace Microsoft.AspNetCore.Mvc.Razor.Compilation
             }
 
             return normalizedPath;
+        }
+
+        private sealed class DefaultRazorCompiledItem : RazorCompiledItem
+        {
+            public DefaultRazorCompiledItem(string identifier, string kind, IReadOnlyList<object> metadata, Type type)
+            {
+                Identifier = identifier;
+                Kind = kind;
+                Metadata = metadata;
+                Type = type;
+            }
+
+            public override string Identifier { get; }
+            public override string Kind { get; }
+            public override IReadOnlyList<object> Metadata { get; }
+            public override Type Type { get; }
         }
     }
 }

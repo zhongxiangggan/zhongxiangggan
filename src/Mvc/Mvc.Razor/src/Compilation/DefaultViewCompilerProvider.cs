@@ -1,4 +1,4 @@
-﻿// Copyright (c) .NET Foundation. All rights reserved.
+// Copyright (c) .NET Foundation. All rights reserved.
 // Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
 
 using Microsoft.AspNetCore.Mvc.ApplicationParts;
@@ -14,10 +14,7 @@ namespace Microsoft.AspNetCore.Mvc.Razor.Compilation
             ApplicationPartManager applicationPartManager,
             ILoggerFactory loggerFactory)
         {
-            var feature = new ViewsFeature();
-            applicationPartManager.PopulateFeature(feature);
-
-            _compiler = new DefaultViewCompiler(feature.ViewDescriptors, loggerFactory.CreateLogger<DefaultViewCompiler>());
+            _compiler = new DefaultViewCompiler(applicationPartManager, loggerFactory.CreateLogger<DefaultViewCompiler>());
         }
 
         public IViewCompiler GetCompiler() => _compiler;

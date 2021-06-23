@@ -44,6 +44,7 @@ namespace Microsoft.AspNetCore.Mvc.Razor
         private readonly ILogger _logger;
         private readonly RazorViewEngineOptions _options;
         private readonly DiagnosticListener _diagnosticListener;
+        private MemoryCache _viewLookupCache;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="RazorViewEngine" />.
@@ -77,13 +78,15 @@ namespace Microsoft.AspNetCore.Mvc.Razor
             _htmlEncoder = htmlEncoder;
             _logger = loggerFactory.CreateLogger<RazorViewEngine>();
             _diagnosticListener = diagnosticListener;
-            ViewLookupCache = new MemoryCache(new MemoryCacheOptions());
+            _viewLookupCache = new MemoryCache(new MemoryCacheOptions());
+
+            HotReload.HotReloadService.ClearCacheEvent += () => _viewLookupCache = new(new MemoryCacheOptions());
         }
 
         /// <summary>
         /// A cache for results of view lookups.
         /// </summary>
-        protected IMemoryCache ViewLookupCache { get; }
+        protected IMemoryCache ViewLookupCache => _viewLookupCache;
 
         /// <summary>
         /// Gets the case-normalized route value for the specified route <paramref name="key"/>.

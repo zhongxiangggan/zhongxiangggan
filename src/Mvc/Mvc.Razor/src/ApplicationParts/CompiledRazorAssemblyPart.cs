@@ -3,6 +3,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Reflection;
 using Microsoft.AspNetCore.Razor.Hosting;
 
@@ -35,8 +36,42 @@ namespace Microsoft.AspNetCore.Mvc.ApplicationParts
             get
             {
                 var loader = new RazorCompiledItemLoader();
-                return loader.LoadItems(Assembly);
+                var items =  loader.LoadItems(Assembly);
+
+                foreach (var item in items)
+                {
+                    Console.WriteLine(item.Identifier + " " + item.Type);
+                }
+
+                foreach (var group in items.GroupBy(g => g.Identifier, StringComparer.Ordinal))
+                {
+                    RazorCompiledItem? newestInstance = null;
+                    var newestVersion = 0;
+                    foreach (var item in group)
+                    {
+                        var currentItemVersion = GetTypeVersion(item);
+                        if (newestInstance is null || currentItemVersion > newestVersion)
+                        {
+                            newestInstance = item;
+                            newestVersion = currentItemVersion;
+                        }
+                    }
+
+                    yield return newestInstance!;
+                }
             }
+        }
+
+        private static int GetTypeVersion(RazorCompiledItem c)
+        {
+            var type = c.Type;
+            var index = type.Name.LastIndexOf('#');
+            if (index == -1)
+            {
+                return 0;
+            }
+
+            return int.Parse(type.Name.AsSpan(index + 1));
         }
     }
 }

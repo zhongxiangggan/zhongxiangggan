@@ -112,6 +112,8 @@ namespace Microsoft.AspNetCore.Mvc.Infrastructure
             // Using the lock to initialize writes means that we serialize changes. This eliminates
             // the potential for changes to be processed out of order - the risk is that newer data
             // could be overwritten by older data.
+            System.Console.WriteLine("Updating");
+
             lock (_lock)
             {
                 var context = new ActionDescriptorProviderContext();
