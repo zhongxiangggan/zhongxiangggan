@@ -44,8 +44,6 @@ namespace Microsoft.AspNetCore.Mvc.Razor.Compilation
             var viewDescriptor = compileTask.GetAwaiter().GetResult();
 
             var viewType = viewDescriptor.Type;
-            Console.WriteLine("Factory :" + viewType);
-
             if (viewType != null)
             {
                 var newExpression = Expression.New(viewType);
