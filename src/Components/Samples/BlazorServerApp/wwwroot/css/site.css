@@ -182,3 +182,7 @@ app {
         display: block;
     }
 }
+
+a.active {
+    font-weight: bold;
+}
