@@ -30,17 +30,21 @@ namespace Microsoft.AspNetCore.Http.Connections.Internal
         private readonly ILogger<HttpConnectionManager> _logger;
         private readonly ILogger<HttpConnectionContext> _connectionLogger;
         private readonly TimeSpan _disconnectTimeout;
+        private readonly ConnectionOptions _connectionOptions;
+
+        internal TimeSpan ShutdownDelay => _connectionOptions.ShutdownDelay ?? ConnectionOptionsSetup.DefaultShutdownDelay;
 
         public HttpConnectionManager(ILoggerFactory loggerFactory, IHostApplicationLifetime appLifetime, IOptions<ConnectionOptions> connectionOptions)
         {
             _logger = loggerFactory.CreateLogger<HttpConnectionManager>();
             _connectionLogger = loggerFactory.CreateLogger<HttpConnectionContext>();
             _nextHeartbeat = new PeriodicTimer(_heartbeatTickRate);
-            _disconnectTimeout = connectionOptions.Value.DisconnectTimeout ?? ConnectionOptionsSetup.DefaultDisconectTimeout;
+            _connectionOptions = connectionOptions.Value;
+            _disconnectTimeout = _connectionOptions.DisconnectTimeout ?? ConnectionOptionsSetup.DefaultDisconectTimeout;
 
             // Register these last as the callbacks could run immediately
             appLifetime.ApplicationStarted.Register(() => Start());
-            appLifetime.ApplicationStopping.Register(() => CloseConnections());
+            appLifetime.ApplicationStopping.Register(() => _ = CloseConnections());
         }
 
         public void Start()
@@ -178,8 +182,14 @@ namespace Microsoft.AspNetCore.Http.Connections.Internal
             }
         }
 
-        public void CloseConnections()
+        public async Task CloseConnections()
         {
+            if (ShutdownDelay != TimeSpan.Zero)
+            {
+                // Delay to let users react to application shutdown before we close the SignalR connections
+                await Task.Delay(ShutdownDelay);
+            }
+
             // Stop firing the timer
             _nextHeartbeat.Dispose();
 
@@ -193,7 +203,7 @@ namespace Microsoft.AspNetCore.Http.Connections.Internal
                 tasks.Add(DisposeAndRemoveAsync(c.Value.Connection, closeGracefully: false));
             }
 
-            Task.WaitAll(tasks.ToArray(), TimeSpan.FromSeconds(5));
+            await Task.WhenAll(tasks).NoThrow();
         }
 
         internal async Task DisposeAndRemoveAsync(HttpConnectionContext connection, bool closeGracefully)
