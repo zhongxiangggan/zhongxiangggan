@@ -518,6 +518,17 @@
       },
       "actionId": "210D431B-A78B-4D2F-B762-4ED3E3EA9025",
       "continueOnError": true
-    }
+    },
+    {
+      "id": "open-file",
+      "condition": "(!NoAuth)",
+      "description": "Opens Duende license readme.",
+      "manualInstructions": [],
+      "actionId": "84C0DA21-51C8-4541-9940-6CA19AF04EE6",
+      "args": {
+        "files": "1"
+      },
+      "continueOnError": true
+    } 
   ]
 }
