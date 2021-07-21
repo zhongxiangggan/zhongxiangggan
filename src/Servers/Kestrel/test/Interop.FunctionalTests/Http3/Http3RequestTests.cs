@@ -1,7 +1,6 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
-using System.Collections;
 using System.Globalization;
 using System.Net;
 using System.Net.Http;
@@ -21,6 +20,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Xunit;
+using Xunit.Abstractions;
 
 namespace Interop.FunctionalTests.Http3
 {
@@ -62,7 +62,6 @@ namespace Interop.FunctionalTests.Http3
                 _completeTcs.TrySetResult();
             }
         }
-
         private static readonly byte[] TestData = Encoding.UTF8.GetBytes("Hello world");
 
         // Verify HTTP/2 and HTTP/3 match behavior
@@ -181,19 +180,9 @@ namespace Interop.FunctionalTests.Http3
             {
                 var body = context.Request.Body;
 
-                var data = new List<byte>();
-                var buffer = new byte[1024];
-                var readCount = 0;
-                while ((readCount = await body.ReadAsync(buffer).DefaultTimeout()) != -1)
-                {
-                    data.AddRange(buffer.AsMemory(0, readCount).ToArray());
-                    if (data.Count == TestData.Length)
-                    {
-                        break;
-                    }
-                }
+                var data = await ReadLengthAsync(body, TestData.Length);
 
-                await context.Response.Body.WriteAsync(buffer.AsMemory(0, TestData.Length));
+                await context.Response.Body.WriteAsync(data);
             });
 
             using (var host = builder.Build())
@@ -228,6 +217,88 @@ namespace Interop.FunctionalTests.Http3
 
                 await host.StopAsync();
             }
+        }
+
+        [ConditionalFact]
+        [MsQuicSupported]
+        public async Task GET_ClientCancellationAfterResponseReceived_ClientGetsResponse()
+        {
+            // Arrange
+            using var httpEventListener = new EventSourceListener(TestOutputHelper);
+
+            var tcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+
+            var builder = CreateHostBuilder(async context =>
+            {
+                Logger.LogInformation("Flush headers on server");
+                await context.Response.Body.FlushAsync();
+
+                var body = context.Request.Body;
+
+                Logger.LogInformation("Server read body");
+                var data = await ReadLengthAsync(body, TestData.Length);
+
+                await context.Response.Body.WriteAsync(data);
+                await context.Response.Body.FlushAsync();
+
+                await tcs.Task;
+            });
+
+            using (var host = builder.Build())
+            using (var client = new HttpClient())
+            {
+                await host.StartAsync();
+
+                var requestContent = new StreamingHttpContext();
+
+                var request = new HttpRequestMessage(HttpMethod.Post, $"https://127.0.0.1:{host.GetPort()}/");
+                request.Content = requestContent;
+                request.Version = HttpVersion.Version30;
+                request.VersionPolicy = HttpVersionPolicy.RequestVersionExact;
+
+                // Act
+                var responseTask = client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead);
+
+                var requestStream = await requestContent.GetStreamAsync();
+
+                // Send headers
+                await requestStream.FlushAsync();
+                // Write content
+                await requestStream.WriteAsync(TestData);
+
+                Logger.LogInformation("Waiting for headers on client");
+                var response = await responseTask;
+
+                // Assert
+                response.EnsureSuccessStatusCode();
+                Assert.Equal(HttpVersion.Version30, response.Version);
+                var stream = await response.Content.ReadAsStreamAsync();
+
+                Logger.LogInformation("Client read body");
+                var data = await ReadLengthAsync(stream, TestData.Length);
+
+                // Cancellation
+                response.Dispose();
+
+                await host.StopAsync();
+            }
+        }
+
+        private static async Task<Memory<byte>> ReadLengthAsync(Stream body, int length)
+        {
+            var data = new List<byte>();
+            var buffer = new byte[1024];
+            var readCount = 0;
+            while ((readCount = await body.ReadAsync(buffer)) != -1)
+            {
+                data.AddRange(buffer.AsMemory(0, readCount).ToArray());
+                if (data.Count == length)
+                {
+                    break;
+                }
+            }
+
+            return buffer.AsMemory(0, length);
         }
 
         // Verify HTTP/2 and HTTP/3 match behavior
