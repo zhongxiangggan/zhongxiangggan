@@ -45,8 +45,9 @@ namespace Microsoft.AspNetCore.Builder
 
             return app.UseExceptionHandler(new ExceptionHandlerOptions
             {
-                ExceptionHandlingPath = new PathString(errorHandlingPath)
-            });
+                ExceptionHandlingPath = errorHandlingPath
+            })
+            .UseRouting();
         }
 
         /// <summary>
@@ -95,7 +96,15 @@ namespace Microsoft.AspNetCore.Builder
                 throw new ArgumentNullException(nameof(options));
             }
 
-            return app.UseMiddleware<ExceptionHandlerMiddleware>(Options.Create(options));
+
+            app.UseMiddleware<ExceptionHandlerMiddleware>(Options.Create(options));
+
+            if (options.ExceptionHandlingPath != null && options.ExceptionHandler == null)
+            {
+                app.UseRouting();
+            }
+
+            return app;
         }
     }
 }
