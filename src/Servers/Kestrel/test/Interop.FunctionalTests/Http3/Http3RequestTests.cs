@@ -3,6 +3,7 @@
 
 using System.Net;
 using System.Net.Http;
+using System.Net.Http.Headers;
 using System.Text;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Connections;
@@ -25,11 +26,19 @@ namespace Interop.FunctionalTests.Http3
             private readonly TaskCompletionSource _completeTcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
             private readonly TaskCompletionSource<Stream> _getStreamTcs = new TaskCompletionSource<Stream>(TaskCreationOptions.RunContinuationsAsynchronously);
 
-            protected override async Task SerializeToStreamAsync(Stream stream, TransportContext context)
+            protected override Task SerializeToStreamAsync(Stream stream, TransportContext context)
+            {
+                throw new NotSupportedException();
+            }
+
+            protected override async Task SerializeToStreamAsync(Stream stream, TransportContext context, CancellationToken cancellationToken)
             {
                 _getStreamTcs.TrySetResult(stream);
 
-                await _completeTcs.Task;
+                var cancellationTcs = new TaskCompletionSource();
+                cancellationToken.Register(() => cancellationTcs.TrySetCanceled());
+
+                await Task.WhenAny(_completeTcs.Task, cancellationTcs.Task);
             }
 
             protected override bool TryComputeLength(out long length)
@@ -56,7 +65,7 @@ namespace Interop.FunctionalTests.Http3
         public async Task POST_ServerCompletesWithoutReadingRequestBody_ClientGetsResponse()
         {
             // Arrange
-            var builder = CreateHttp3HostBuilder(async context =>
+            var builder = CreateHostBuilder(async context =>
             {
                 var body = context.Request.Body;
 
@@ -109,16 +118,19 @@ namespace Interop.FunctionalTests.Http3
             }
         }
 
-        [ConditionalFact]
+        // Verify HTTP/2 and HTTP/3 match behavior
+        [ConditionalTheory]
         [MsQuicSupported]
-        public async Task POST_ClientCancellationUpload_RequestAbortRaised()
+        [InlineData(HttpProtocols.Http3)]
+        [InlineData(HttpProtocols.Http2)]
+        public async Task POST_ClientCancellationUpload_RequestAbortRaised(HttpProtocols protocol)
         {
             // Arrange
             var syncPoint = new SyncPoint();
             var cancelledTcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
             var readAsyncTask = new TaskCompletionSource<Task>(TaskCreationOptions.RunContinuationsAsynchronously);
 
-            var builder = CreateHttp3HostBuilder(async context =>
+            var builder = CreateHostBuilder(async context =>
             {
                 context.RequestAborted.Register(() => cancelledTcs.SetResult());
 
@@ -144,33 +156,36 @@ namespace Interop.FunctionalTests.Http3
                 await cancelledTcs.Task;
 
                 readAsyncTask.SetResult(body.ReadAsync(buffer).AsTask());
-            });
+            }, protocol: protocol);
+
+            var httpClientHandler = new HttpClientHandler();
+            httpClientHandler.ServerCertificateCustomValidationCallback = HttpClientHandler.DangerousAcceptAnyServerCertificateValidator;
 
             using (var host = builder.Build())
-            using (var client = new HttpClient())
+            using (var client = new HttpClient(httpClientHandler))
             {
-                await host.StartAsync();
+                await host.StartAsync().DefaultTimeout();
 
                 var cts = new CancellationTokenSource();
                 var requestContent = new StreamingHttpContext();
 
                 var request = new HttpRequestMessage(HttpMethod.Post, $"https://127.0.0.1:{host.GetPort()}/");
                 request.Content = requestContent;
-                request.Version = HttpVersion.Version30;
+                request.Version = GetProtocol(protocol);
                 request.VersionPolicy = HttpVersionPolicy.RequestVersionExact;
 
                 // Act
                 var responseTask = client.SendAsync(request, cts.Token);
 
-                var requestStream = await requestContent.GetStreamAsync();
+                var requestStream = await requestContent.GetStreamAsync().DefaultTimeout();
 
                 // Send headers
-                await requestStream.FlushAsync();
+                await requestStream.FlushAsync().DefaultTimeout();
                 // Write content
-                await requestStream.WriteAsync(TestData);
+                await requestStream.WriteAsync(TestData).DefaultTimeout();
 
                 // Wait until content is read on server
-                await syncPoint.WaitForSyncPoint();
+                await syncPoint.WaitForSyncPoint().DefaultTimeout();
 
                 // Cancel request
                 cts.Cancel();
@@ -185,9 +200,22 @@ namespace Interop.FunctionalTests.Http3
 
                 var serverWriteTask = await readAsyncTask.Task.DefaultTimeout();
 
-                var ex = await Assert.ThrowsAnyAsync<OperationCanceledException>(() => serverWriteTask).DefaultTimeout();
+                await Assert.ThrowsAnyAsync<Exception>(() => serverWriteTask).DefaultTimeout();
 
-                await host.StopAsync();
+                await host.StopAsync().DefaultTimeout();
+            }
+        }
+
+        private static Version GetProtocol(HttpProtocols protocol)
+        {
+            switch (protocol)
+            {
+                case HttpProtocols.Http2:
+                    return HttpVersion.Version20;
+                case HttpProtocols.Http3:
+                    return HttpVersion.Version30;
+                default:
+                    throw new InvalidOperationException();
             }
         }
 
@@ -199,7 +227,7 @@ namespace Interop.FunctionalTests.Http3
             object persistedState = null;
             var requestCount = 0;
 
-            var builder = CreateHttp3HostBuilder(context =>
+            var builder = CreateHostBuilder(context =>
             {
                 requestCount++;
                 var persistentStateCollection = context.Features.Get<IPersistentStateFeature>().State;
@@ -257,7 +285,7 @@ namespace Interop.FunctionalTests.Http3
             string request2HeaderValue = null;
             var requestCount = 0;
 
-            var builder = CreateHttp3HostBuilder(context =>
+            var builder = CreateHostBuilder(context =>
             {
                 requestCount++;
 
@@ -315,12 +343,12 @@ namespace Interop.FunctionalTests.Http3
         public async Task GET_ConnectionLoggingConfigured_OutputToLogs()
         {
             // Arrange
-            var builder = CreateHttp3HostBuilder(
+            var builder = CreateHostBuilder(
                 context =>
                 {
                     return Task.CompletedTask;
                 },
-                kestrel =>
+                configureKestrel: kestrel =>
                 {
                     kestrel.ListenLocalhost(5001, listenOptions =>
                     {
@@ -360,7 +388,7 @@ namespace Interop.FunctionalTests.Http3
             }
         }
 
-        private IHostBuilder CreateHttp3HostBuilder(RequestDelegate requestDelegate, Action<KestrelServerOptions> configureKestrel = null)
+        private IHostBuilder CreateHostBuilder(RequestDelegate requestDelegate, HttpProtocols? protocol = null, Action<KestrelServerOptions> configureKestrel = null)
         {
             return GetHostBuilder()
                 .ConfigureWebHost(webHostBuilder =>
@@ -372,7 +400,7 @@ namespace Interop.FunctionalTests.Http3
                             {
                                 o.Listen(IPAddress.Parse("127.0.0.1"), 0, listenOptions =>
                                 {
-                                    listenOptions.Protocols = HttpProtocols.Http3;
+                                    listenOptions.Protocols = protocol ?? HttpProtocols.Http3;
                                     listenOptions.UseHttps();
                                 });
                             }
