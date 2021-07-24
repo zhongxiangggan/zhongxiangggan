@@ -406,12 +406,6 @@ namespace Microsoft.AspNetCore.Server.Kestrel.Core.Internal.Http3
         {
             Exception? error = null;
 
-            //_context.StreamContext.ConnectionClosed.UnsafeRegister(static s =>
-            //{
-            //    var stream = (Http3Stream)s!;
-            //    stream.Abort(new ConnectionAbortedException(), (Http3ErrorCode)stream._errorCodeFeature.Error);
-            //}, this);
-
             try
             {
                 while (_isClosed == 0)
@@ -460,7 +454,8 @@ namespace Microsoft.AspNetCore.Server.Kestrel.Core.Internal.Http3
             }
             catch (ConnectionResetException ex)
             {
-                // TODO: Check what other exceptions can cause ConnectionResetException.
+                // TODO: This is temporary. Don't want to tie HTTP/3 layer to one transport.
+                // This is here to check what other exceptions can cause ConnectionResetException.
                 Debug.Assert(ex.InnerException is QuicStreamAbortedException);
 
                 error = ex;
