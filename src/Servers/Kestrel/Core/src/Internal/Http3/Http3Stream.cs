@@ -7,6 +7,7 @@ using System.Diagnostics;
 using System.IO.Pipelines;
 using System.Net.Http;
 using System.Net.Http.QPack;
+using System.Net.Quic;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
@@ -405,6 +406,12 @@ namespace Microsoft.AspNetCore.Server.Kestrel.Core.Internal.Http3
         {
             Exception? error = null;
 
+            //_context.StreamContext.ConnectionClosed.UnsafeRegister(static s =>
+            //{
+            //    var stream = (Http3Stream)s!;
+            //    stream.Abort(new ConnectionAbortedException(), (Http3ErrorCode)stream._errorCodeFeature.Error);
+            //}, this);
+
             try
             {
                 while (_isClosed == 0)
@@ -439,7 +446,6 @@ namespace Microsoft.AspNetCore.Server.Kestrel.Core.Internal.Http3
                     }
                 }
             }
-            // catch ConnectionResetException here?
             catch (Http3StreamErrorException ex)
             {
                 error = ex;
@@ -451,6 +457,14 @@ namespace Microsoft.AspNetCore.Server.Kestrel.Core.Internal.Http3
                 _errorCodeFeature.Error = (long)ex.ErrorCode;
 
                 _context.StreamLifetimeHandler.OnStreamConnectionError(ex);
+            }
+            catch (ConnectionResetException ex)
+            {
+                // TODO: Check what other exceptions can cause ConnectionResetException.
+                Debug.Assert(ex.InnerException is QuicStreamAbortedException);
+
+                error = ex;
+                Abort(new ConnectionAbortedException(ex.Message, ex), (Http3ErrorCode)_errorCodeFeature.Error);
             }
             catch (Exception ex)
             {

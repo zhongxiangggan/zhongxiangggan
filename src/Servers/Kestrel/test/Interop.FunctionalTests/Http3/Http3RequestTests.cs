@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.Connections;
 using Microsoft.AspNetCore.Connections.Features;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Internal;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Microsoft.AspNetCore.Server.Kestrel.FunctionalTests;
 using Microsoft.AspNetCore.Testing;
@@ -52,7 +53,7 @@ namespace Interop.FunctionalTests.Http3
 
         [ConditionalFact]
         [MsQuicSupported]
-        public async Task POST_ServerCompletsWithoutReadingRequestBody_ClientGetsResponse()
+        public async Task POST_ServerCompletesWithoutReadingRequestBody_ClientGetsResponse()
         {
             // Arrange
             var builder = CreateHttp3HostBuilder(async context =>
@@ -110,6 +111,88 @@ namespace Interop.FunctionalTests.Http3
 
         [ConditionalFact]
         [MsQuicSupported]
+        public async Task POST_ClientCancellationUpload_RequestAbortRaised()
+        {
+            // Arrange
+            var syncPoint = new SyncPoint();
+            var cancelledTcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            var readAsyncTask = new TaskCompletionSource<Task>(TaskCreationOptions.RunContinuationsAsynchronously);
+
+            var builder = CreateHttp3HostBuilder(async context =>
+            {
+                context.RequestAborted.Register(() => cancelledTcs.SetResult());
+
+                var body = context.Request.Body;
+
+                // Read content
+                var data = new List<byte>();
+                var buffer = new byte[1024];
+                var readCount = 0;
+                while ((readCount = await body.ReadAsync(buffer).DefaultTimeout()) != -1)
+                {
+                    data.AddRange(buffer.AsMemory(0, readCount).ToArray());
+                    if (data.Count == TestData.Length)
+                    {
+                        break;
+                    }
+                }
+
+                // Sync with client
+                await syncPoint.WaitToContinue();
+
+                // Wait for task cancellation
+                await cancelledTcs.Task;
+
+                readAsyncTask.SetResult(body.ReadAsync(buffer).AsTask());
+            });
+
+            using (var host = builder.Build())
+            using (var client = new HttpClient())
+            {
+                await host.StartAsync();
+
+                var cts = new CancellationTokenSource();
+                var requestContent = new StreamingHttpContext();
+
+                var request = new HttpRequestMessage(HttpMethod.Post, $"https://127.0.0.1:{host.GetPort()}/");
+                request.Content = requestContent;
+                request.Version = HttpVersion.Version30;
+                request.VersionPolicy = HttpVersionPolicy.RequestVersionExact;
+
+                // Act
+                var responseTask = client.SendAsync(request, cts.Token);
+
+                var requestStream = await requestContent.GetStreamAsync();
+
+                // Send headers
+                await requestStream.FlushAsync();
+                // Write content
+                await requestStream.WriteAsync(TestData);
+
+                // Wait until content is read on server
+                await syncPoint.WaitForSyncPoint();
+
+                // Cancel request
+                cts.Cancel();
+
+                // Continue on server
+                syncPoint.Continue();
+
+                // Assert
+                await Assert.ThrowsAnyAsync<OperationCanceledException>(() => responseTask).DefaultTimeout();
+
+                await cancelledTcs.Task.DefaultTimeout();
+
+                var serverWriteTask = await readAsyncTask.Task.DefaultTimeout();
+
+                var ex = await Assert.ThrowsAnyAsync<OperationCanceledException>(() => serverWriteTask).DefaultTimeout();
+
+                await host.StopAsync();
+            }
+        }
+
+        [ConditionalFact]
+        [MsQuicSupported]
         public async Task GET_MultipleRequestsInSequence_ReusedState()
         {
             // Arrange
@@ -160,6 +243,68 @@ namespace Interop.FunctionalTests.Http3
 
                 // State persisted on first request was available on the second request
                 Assert.Equal(1, secondRequestState);
+
+                await host.StopAsync();
+            }
+        }
+
+        [ConditionalFact]
+        [MsQuicSupported]
+        public async Task GET_MultipleRequestsInSequence_ReusedRequestHeaderStrings()
+        {
+            // Arrange
+            string request1HeaderValue = null;
+            string request2HeaderValue = null;
+            var requestCount = 0;
+
+            var builder = CreateHttp3HostBuilder(context =>
+            {
+                requestCount++;
+
+                if (requestCount == 1)
+                {
+                    request1HeaderValue = context.Request.Headers.UserAgent;
+                }
+                else if (requestCount == 2)
+                {
+                    request2HeaderValue = context.Request.Headers.UserAgent;
+                }
+                else
+                {
+                    throw new InvalidOperationException();
+                }
+
+                return Task.CompletedTask;
+            });
+
+            using (var host = builder.Build())
+            using (var client = new HttpClient())
+            {
+                await host.StartAsync();
+
+                // Act
+                var request1 = new HttpRequestMessage(HttpMethod.Get, $"https://127.0.0.1:{host.GetPort()}/");
+                request1.Headers.TryAddWithoutValidation("User-Agent", "TestUserAgent");
+                request1.Version = HttpVersion.Version30;
+                request1.VersionPolicy = HttpVersionPolicy.RequestVersionExact;
+
+                var response1 = await client.SendAsync(request1);
+                response1.EnsureSuccessStatusCode();
+
+                // Delay to ensure the stream has enough time to return to pool
+                await Task.Delay(100);
+
+                var request2 = new HttpRequestMessage(HttpMethod.Get, $"https://127.0.0.1:{host.GetPort()}/");
+                request2.Headers.TryAddWithoutValidation("User-Agent", "TestUserAgent");
+                request2.Version = HttpVersion.Version30;
+                request2.VersionPolicy = HttpVersionPolicy.RequestVersionExact;
+
+                var response2 = await client.SendAsync(request2);
+                response2.EnsureSuccessStatusCode();
+
+                // Assert
+                Assert.Equal("TestUserAgent", request1HeaderValue);
+                Assert.Same(request1HeaderValue, request2HeaderValue);
 
                 await host.StopAsync();
             }
