@@ -4,6 +4,7 @@
 using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
+using System.Net.Quic;
 using System.Text;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Connections;
@@ -201,6 +202,67 @@ namespace Interop.FunctionalTests.Http3
                 var serverWriteTask = await readAsyncTask.Task.DefaultTimeout();
 
                 await Assert.ThrowsAnyAsync<Exception>(() => serverWriteTask).DefaultTimeout();
+
+                await host.StopAsync().DefaultTimeout();
+            }
+        }
+
+        // Verify HTTP/2 and HTTP/3 match behavior
+        [ConditionalTheory]
+        [MsQuicSupported]
+        [InlineData(HttpProtocols.Http3)]
+        [InlineData(HttpProtocols.Http2)]
+        public async Task GET_ServerAbort_ClientReceivesAbort(HttpProtocols protocol)
+        {
+            // Arrange
+            var syncPoint = new SyncPoint();
+            var cancelledTcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            var writeAsyncTask = new TaskCompletionSource<Task>(TaskCreationOptions.RunContinuationsAsynchronously);
+
+            var builder = CreateHostBuilder(async context =>
+            {
+                context.RequestAborted.Register(() => cancelledTcs.SetResult());
+
+                context.Abort();
+
+                // Sync with client
+                await syncPoint.WaitToContinue();
+
+                writeAsyncTask.SetResult(context.Response.Body.WriteAsync(TestData).AsTask());
+            }, protocol: protocol);
+
+            var httpClientHandler = new HttpClientHandler();
+            httpClientHandler.ServerCertificateCustomValidationCallback = HttpClientHandler.DangerousAcceptAnyServerCertificateValidator;
+
+            using (var host = builder.Build())
+            using (var client = new HttpClient(httpClientHandler))
+            {
+                await host.StartAsync().DefaultTimeout();
+
+                var requestContent = new StreamingHttpContext();
+
+                var request = new HttpRequestMessage(HttpMethod.Get, $"https://127.0.0.1:{host.GetPort()}/");
+                request.Version = GetProtocol(protocol);
+                request.VersionPolicy = HttpVersionPolicy.RequestVersionExact;
+
+                // Act
+                var ex = await Assert.ThrowsAnyAsync<HttpRequestException>(() => client.SendAsync(request)).DefaultTimeout();
+
+                // Assert
+                if (protocol == HttpProtocols.Http3)
+                {
+                    var innerEx = Assert.IsType<QuicStreamAbortedException>(ex.InnerException);
+                    Assert.Equal(258, innerEx.ErrorCode);
+                }
+
+                await cancelledTcs.Task.DefaultTimeout();
+
+                // Sync with server to ensure RequestDelegate is still running
+                await syncPoint.WaitForSyncPoint().DefaultTimeout();
+                syncPoint.Continue();
+
+                var serverWriteTask = await writeAsyncTask.Task.DefaultTimeout();
+                await serverWriteTask.DefaultTimeout();
 
                 await host.StopAsync().DefaultTimeout();
             }
