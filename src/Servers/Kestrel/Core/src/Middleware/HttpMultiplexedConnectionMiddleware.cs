@@ -15,21 +15,21 @@ namespace Microsoft.AspNetCore.Server.Kestrel.Core.Internal
         private readonly ServiceContext _serviceContext;
         private readonly IHttpApplication<TContext> _application;
         private readonly HttpProtocols _protocols;
-        private readonly bool _enableAltSvc;
+        private readonly bool _addAltSvcHeader;
 
-        public HttpMultiplexedConnectionMiddleware(ServiceContext serviceContext, IHttpApplication<TContext> application, HttpProtocols protocols, bool enableAltSvc)
+        public HttpMultiplexedConnectionMiddleware(ServiceContext serviceContext, IHttpApplication<TContext> application, HttpProtocols protocols, bool addAltSvcHeader)
         {
             _serviceContext = serviceContext;
             _application = application;
             _protocols = protocols;
-            _enableAltSvc = enableAltSvc;
+            _addAltSvcHeader = addAltSvcHeader;
         }
 
         public Task OnConnectionAsync(MultiplexedConnectionContext connectionContext)
         {
             var memoryPoolFeature = connectionContext.Features.Get<IMemoryPoolFeature>();
             var localEndPoint = connectionContext.LocalEndPoint as IPEndPoint;
-            var altSvcHeader = _enableAltSvc && localEndPoint != null ? HttpUtilities.GetEndpointAltSvc(localEndPoint, _protocols) : null;
+            var altSvcHeader = _addAltSvcHeader && localEndPoint != null ? HttpUtilities.GetEndpointAltSvc(localEndPoint, _protocols) : null;
 
             var httpConnectionContext = new HttpMultiplexedConnectionContext(
                 connectionContext.ConnectionId,

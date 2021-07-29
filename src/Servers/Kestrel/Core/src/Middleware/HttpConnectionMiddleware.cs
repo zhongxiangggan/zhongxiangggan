@@ -15,14 +15,14 @@ namespace Microsoft.AspNetCore.Server.Kestrel.Core.Internal
         private readonly ServiceContext _serviceContext;
         private readonly IHttpApplication<TContext> _application;
         private readonly HttpProtocols _endpointDefaultProtocols;
-        private readonly bool _enableAltSvc;
+        private readonly bool _addAltSvcHeader;
 
-        public HttpConnectionMiddleware(ServiceContext serviceContext, IHttpApplication<TContext> application, HttpProtocols protocols, bool enableAltSvc)
+        public HttpConnectionMiddleware(ServiceContext serviceContext, IHttpApplication<TContext> application, HttpProtocols protocols, bool addAltSvcHeader)
         {
             _serviceContext = serviceContext;
             _application = application;
             _endpointDefaultProtocols = protocols;
-            _enableAltSvc = enableAltSvc;
+            _addAltSvcHeader = addAltSvcHeader;
         }
 
         public Task OnConnectionAsync(ConnectionContext connectionContext)
@@ -30,7 +30,7 @@ namespace Microsoft.AspNetCore.Server.Kestrel.Core.Internal
             var memoryPoolFeature = connectionContext.Features.Get<IMemoryPoolFeature>();
             var protocols = connectionContext.Features.Get<HttpProtocolsFeature>()?.HttpProtocols ?? _endpointDefaultProtocols;
             var localEndPoint = connectionContext.LocalEndPoint as IPEndPoint;
-            var altSvcHeader = _enableAltSvc && localEndPoint != null ? HttpUtilities.GetEndpointAltSvc(localEndPoint, protocols) : null;
+            var altSvcHeader = _addAltSvcHeader && localEndPoint != null ? HttpUtilities.GetEndpointAltSvc(localEndPoint, protocols) : null;
 
             var httpConnectionContext = new HttpConnectionContext(
                 connectionContext.ConnectionId,

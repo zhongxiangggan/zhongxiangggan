@@ -203,9 +203,9 @@ namespace Microsoft.AspNetCore.Server.Kestrel.Core.Internal
             var applicationProtocol = _context.ConnectionFeatures.Get<ITlsApplicationProtocolFeature>()?.ApplicationProtocol
                 ?? new ReadOnlyMemory<byte>();
             var isMultiplexTransport = _context is HttpMultiplexedConnectionContext;
-            var http1Enabled = (_context.Protocols & HttpProtocols.Http1) == HttpProtocols.Http1;
-            var http2Enabled = (_context.Protocols & HttpProtocols.Http2) == HttpProtocols.Http2;
-            var http3Enabled = (_context.Protocols & HttpProtocols.Http3) == HttpProtocols.Http3;
+            var http1Enabled = _context.Protocols.HasFlag(HttpProtocols.Http1);
+            var http2Enabled = _context.Protocols.HasFlag(HttpProtocols.Http2);
+            var http3Enabled = _context.Protocols.HasFlag(HttpProtocols.Http3);
 
             string? error = null;
 

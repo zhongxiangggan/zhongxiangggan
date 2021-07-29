@@ -196,7 +196,7 @@ namespace Microsoft.AspNetCore.Server.Kestrel.Transport.Quic.Tests
                 Assert.Equal("hello, world", responseText1);
 
                 Assert.True(response1.Headers.TryGetValues("alt-svc", out var altSvcValues1));
-                Assert.Single(altSvcValues1, @$"h3="":{host.GetPort()}""; ma=84600");
+                Assert.Single(altSvcValues1, @$"h3="":{host.GetPort()}""; ma=86400");
 
                 // Act
                 var request2 = new HttpRequestMessage(HttpMethod.Get, $"https://127.0.0.1:{host.GetPort()}/");
@@ -210,7 +210,7 @@ namespace Microsoft.AspNetCore.Server.Kestrel.Transport.Quic.Tests
                 Assert.Equal("hello, world", responseText2);
 
                 Assert.True(response2.Headers.TryGetValues("alt-svc", out var altSvcValues2));
-                Assert.Single(altSvcValues2, @$"h3="":{host.GetPort()}""; ma=84600");
+                Assert.Single(altSvcValues2, @$"h3="":{host.GetPort()}""; ma=86400");
             }
 
             await host.StopAsync().DefaultTimeout();

@@ -95,7 +95,7 @@ namespace Microsoft.AspNetCore.Server.Kestrel.Core
         /// <remarks>
         /// Defaults to true.
         /// </remarks>
-        public bool EnableAltSvc { get; set; } = true;
+        public bool AddAltSvcHeader { get; set; } = true;
 
         /// <summary>
         /// Gets the application <see cref="IServiceProvider"/>.

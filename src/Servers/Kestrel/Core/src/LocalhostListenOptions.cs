@@ -74,7 +74,7 @@ namespace Microsoft.AspNetCore.Server.Kestrel.Core
             {
                 KestrelServerOptions = KestrelServerOptions,
                 Protocols = Protocols,
-                EnableAltSvc = EnableAltSvc,
+                AddAltSvcHeader = AddAltSvcHeader,
                 IsTls = IsTls,
                 HttpsOptions = HttpsOptions,
                 EndpointConfig = EndpointConfig

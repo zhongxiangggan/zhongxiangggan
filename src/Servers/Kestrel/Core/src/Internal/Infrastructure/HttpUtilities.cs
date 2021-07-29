@@ -5,6 +5,7 @@ using System;
 using System.Buffers;
 using System.Buffers.Binary;
 using System.Diagnostics;
+using System.Globalization;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -539,8 +540,11 @@ namespace Microsoft.AspNetCore.Server.Kestrel.Core.Internal.Infrastructure
 
             if (hasHttp1OrHttp2 && hasHttp3)
             {
-                var text = $"h3=\":{endpoint.Port}\"; ma=84600";
-                var bytes = Encoding.ASCII.GetBytes($"\r\nAlt-Svc: {text}");
+                // 86400 is a cache of 24 hours.
+                // This is the default cache if none is specified, but it appears that all popular HTTP/3
+                // websites explicitly specifies a cache duration in the header.
+                var text = "h3=\":" + endpoint.Port.ToString(CultureInfo.InvariantCulture) + "\"; ma=86400";
+                var bytes = Encoding.ASCII.GetBytes($"\r\nAlt-Svc: h3=\":" + endpoint.Port.ToString(CultureInfo.InvariantCulture) + "\"; ma=86400");
                 return new AltSvcHeader(text, bytes);
             }
 

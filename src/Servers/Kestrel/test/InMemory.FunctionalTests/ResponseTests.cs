@@ -4047,10 +4047,17 @@ namespace Microsoft.AspNetCore.Server.Kestrel.InMemory.FunctionalTests
         [Fact]
         public async Task ResponseStreamWrappingWorks()
         {
-            await using (var server = new TestServer(httpContext =>
+            await using (var server = new TestServer(async httpContext =>
             {
-                return Task.CompletedTask;
+                var oldBody = httpContext.Response.Body;
+                httpContext.Response.Body = new MemoryStream();
 
+                await httpContext.Response.BodyWriter.WriteAsync(new byte[1]);
+                await httpContext.Response.Body.WriteAsync(new byte[1]);
+
+                Assert.Equal(2, httpContext.Response.Body.Length);
+
+                httpContext.Response.Body = oldBody;
             }, new TestServiceContext(LoggerFactory),
             new ListenOptions(new IPEndPoint(IPAddress.Loopback, 0))))
             {
@@ -4134,7 +4141,7 @@ namespace Microsoft.AspNetCore.Server.Kestrel.InMemory.FunctionalTests
                         "HTTP/1.1 200 OK",
                         "Content-Length: 0",
                         $"Date: {server.Context.DateHeaderValue}",
-                        @"Alt-Svc: h3="":0""; ma=84600",
+                        @"Alt-Svc: h3="":0""; ma=86400",
                         "",
                         "");
                 }
@@ -4213,7 +4220,7 @@ namespace Microsoft.AspNetCore.Server.Kestrel.InMemory.FunctionalTests
                     options.CodeBackedListenOptions.Add(new ListenOptions(new IPEndPoint(IPAddress.Loopback, 0))
                     {
                         Protocols = HttpProtocols.Http1AndHttp2AndHttp3,
-                        EnableAltSvc = false
+                        AddAltSvcHeader = false
                     });
                 },
                 services => { }))
