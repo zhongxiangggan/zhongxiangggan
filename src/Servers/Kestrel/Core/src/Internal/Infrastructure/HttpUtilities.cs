@@ -541,10 +541,11 @@ namespace Microsoft.AspNetCore.Server.Kestrel.Core.Internal.Infrastructure
             if (hasHttp1OrHttp2 && hasHttp3)
             {
                 // 86400 is a cache of 24 hours.
-                // This is the default cache if none is specified, but it appears that all popular HTTP/3
-                // websites explicitly specifies a cache duration in the header.
+                // This is the default cache if none is specified with Alt-Svc, but it appears that all
+                // popular HTTP/3 websites explicitly specifies a cache duration in the header.
+                // Specify a value to be consistent.
                 var text = "h3=\":" + endpoint.Port.ToString(CultureInfo.InvariantCulture) + "\"; ma=86400";
-                var bytes = Encoding.ASCII.GetBytes($"\r\nAlt-Svc: h3=\":" + endpoint.Port.ToString(CultureInfo.InvariantCulture) + "\"; ma=86400");
+                var bytes = Encoding.ASCII.GetBytes($"\r\nAlt-Svc: " + text);
                 return new AltSvcHeader(text, bytes);
             }
 
