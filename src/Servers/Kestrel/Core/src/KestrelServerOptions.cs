@@ -94,6 +94,15 @@ namespace Microsoft.AspNetCore.Server.Kestrel.Core
         public bool DisableStringReuse { get; set; }
 
         /// <summary>
+        /// Controls whether to return the "Alt-Svc" header from an HTTP/2 or lower response for HTTP/3.
+        /// </summary>
+        /// <remarks>
+        /// Defaults to false.
+        /// </remarks>
+        [Obsolete($"This property is obsolete and will be removed in a future version. It no longer has any impact on runtime behavior. Use {nameof(Microsoft.AspNetCore.Server.Kestrel.Core.ListenOptions)}.{nameof(Microsoft.AspNetCore.Server.Kestrel.Core.ListenOptions.AddAltSvcHeader)} to configure this behavior.")]
+        public bool EnableAltSvc { get; set; }
+
+        /// <summary>
         /// Gets or sets a callback that returns the <see cref="Encoding"/> to decode the value for the specified request header name,
         /// or <see langword="null"/> to use the default <see cref="UTF8Encoding"/>.
         /// </summary>

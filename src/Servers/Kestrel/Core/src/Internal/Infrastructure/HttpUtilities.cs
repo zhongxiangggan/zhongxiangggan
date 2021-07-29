@@ -552,5 +552,5 @@ namespace Microsoft.AspNetCore.Server.Kestrel.Core.Internal.Infrastructure
         }
     }
 
-    public record AltSvcHeader(string Value, byte[] RawBytes);
+    internal record AltSvcHeader(string Value, byte[] RawBytes);
 }
