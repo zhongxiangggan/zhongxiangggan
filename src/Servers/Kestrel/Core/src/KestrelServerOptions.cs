@@ -68,6 +68,7 @@ namespace Microsoft.AspNetCore.Server.Kestrel.Core
         /// </remarks>
         public bool AllowSynchronousIO { get; set; }
 
+        /// <summary>
         /// Gets or sets a value that controls how the `:scheme` field for HTTP/2 and HTTP/3 requests is validated.
         /// <para>
         /// If <c>false</c> then the `:scheme` field for HTTP/2 and HTTP/3 requests must exactly match the transport (e.g. https for TLS
@@ -77,6 +78,7 @@ namespace Microsoft.AspNetCore.Server.Kestrel.Core
         /// scenarios such as proxies converting from alternate protocols. See https://datatracker.ietf.org/doc/html/rfc7540#section-8.1.2.3.
         /// Applications that enable this should validate an expected scheme is provided before using it.
         /// </para>
+        /// </summary>
         /// <remarks>
         /// Defaults to <c>false</c>.
         /// </remarks>
@@ -90,14 +92,6 @@ namespace Microsoft.AspNetCore.Server.Kestrel.Core
         /// Defaults to false.
         /// </remarks>
         public bool DisableStringReuse { get; set; }
-
-        /// <summary>
-        /// Controls whether to return the "Alt-Svc" header from an HTTP/2 or lower response for HTTP/3.
-        /// </summary>
-        /// <remarks>
-        /// Defaults to false.
-        /// </remarks>
-        public bool EnableAltSvc { get; set; }
 
         /// <summary>
         /// Gets or sets a callback that returns the <see cref="Encoding"/> to decode the value for the specified request header name,

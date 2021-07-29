@@ -163,7 +163,6 @@ namespace Microsoft.AspNetCore.Server.Kestrel.Transport.Quic.Tests
                     webHostBuilder
                         .UseKestrel(o =>
                         {
-                            o.EnableAltSvc = true;
                             o.Listen(IPAddress.Parse("127.0.0.1"), 0, listenOptions =>
                             {
                                 listenOptions.Protocols = Core.HttpProtocols.Http1AndHttp2AndHttp3;

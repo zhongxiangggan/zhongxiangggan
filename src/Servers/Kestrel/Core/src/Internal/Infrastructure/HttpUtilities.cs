@@ -531,5 +531,22 @@ namespace Microsoft.AspNetCore.Server.Kestrel.Core.Internal.Infrastructure
                 // Check if less than 6 representing chars 'a' - 'f'
                 || (uint)((ch | 32) - 'a') < 6u;
         }
+
+        public static AltSvcHeader? GetEndpointAltSvc(System.Net.IPEndPoint endpoint, HttpProtocols protocols)
+        {
+            var hasHttp1OrHttp2 = protocols.HasFlag(HttpProtocols.Http1) || protocols.HasFlag(HttpProtocols.Http2);
+            var hasHttp3 = protocols.HasFlag(HttpProtocols.Http3);
+
+            if (hasHttp1OrHttp2 && hasHttp3)
+            {
+                var text = $"h3=\":{endpoint.Port}\"; ma=84600";
+                var bytes = Encoding.ASCII.GetBytes($"\r\nAlt-Svc: {text}");
+                return new AltSvcHeader(text, bytes);
+            }
+
+            return null;
+        }
     }
+
+    public record AltSvcHeader(string Value, byte[] RawBytes);
 }
