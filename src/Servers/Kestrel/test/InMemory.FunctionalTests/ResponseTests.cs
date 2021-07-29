@@ -4058,8 +4058,7 @@ namespace Microsoft.AspNetCore.Server.Kestrel.InMemory.FunctionalTests
                 Assert.Equal(2, httpContext.Response.Body.Length);
 
                 httpContext.Response.Body = oldBody;
-            }, new TestServiceContext(LoggerFactory),
-            new ListenOptions(new IPEndPoint(IPAddress.Loopback, 0))))
+            }, new TestServiceContext(LoggerFactory)))
             {
                 using (var connection = server.CreateConnection())
                 {
