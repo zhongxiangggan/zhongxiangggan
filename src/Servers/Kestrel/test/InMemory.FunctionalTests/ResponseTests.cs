@@ -4072,14 +4072,47 @@ namespace Microsoft.AspNetCore.Server.Kestrel.InMemory.FunctionalTests
         }
 
         [Fact]
-        public async Task EnableAltSvc_Enabled_Http1And2And3EndpointConfigured_AltSvcInResponseHeaders()
+        public async Task EnableAltSvc_HeaderSetInAppCode_AltSvcNotOverwritten()
         {
             await using (var server = new TestServer(
                 httpContext =>
                 {
+                    httpContext.Response.Headers.AltSvc = "Custom";
                     return Task.CompletedTask;
-
                 },
+                new TestServiceContext(LoggerFactory),
+                options =>
+                {
+                    options.CodeBackedListenOptions.Add(new ListenOptions(new IPEndPoint(IPAddress.Loopback, 0))
+                    {
+                        Protocols = HttpProtocols.Http1AndHttp2AndHttp3
+                    });
+                },
+                services => { }))
+            {
+                using (var connection = server.CreateConnection())
+                {
+                    await connection.Send(
+                        "GET / HTTP/1.1",
+                        "Host:",
+                        "",
+                        "");
+                    await connection.Receive(
+                        "HTTP/1.1 200 OK",
+                        "Content-Length: 0",
+                        $"Date: {server.Context.DateHeaderValue}",
+                        @"Alt-Svc: Custom",
+                        "",
+                        "");
+                }
+            }
+        }
+
+        [Fact]
+        public async Task EnableAltSvc_Enabled_Http1And2And3EndpointConfigured_AltSvcInResponseHeaders()
+        {
+            await using (var server = new TestServer(
+                httpContext => Task.CompletedTask,
                 new TestServiceContext(LoggerFactory),
                 options =>
                 {
@@ -4111,12 +4144,10 @@ namespace Microsoft.AspNetCore.Server.Kestrel.InMemory.FunctionalTests
         [Fact]
         public async Task EnableAltSvc_Enabled_Http1_NoAltSvcInResponseHeaders()
         {
-            await using (var server = new TestServer(httpContext =>
-            {
-                return Task.CompletedTask;
-
-            }, new TestServiceContext(LoggerFactory),
-            new ListenOptions(new IPEndPoint(IPAddress.Loopback, 0)) { Protocols = HttpProtocols.Http1 }))
+            await using (var server = new TestServer(
+                httpContext => Task.CompletedTask,
+                new TestServiceContext(LoggerFactory),
+                new ListenOptions(new IPEndPoint(IPAddress.Loopback, 0)) { Protocols = HttpProtocols.Http1 }))
             {
                 using (var connection = server.CreateConnection())
                 {
