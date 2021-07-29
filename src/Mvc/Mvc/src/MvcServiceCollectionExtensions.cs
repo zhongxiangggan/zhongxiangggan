@@ -6,11 +6,15 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Reflection;
+using System.Reflection.Metadata;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.ApplicationParts;
+using Microsoft.AspNetCore.Mvc.HotReload;
+using Microsoft.AspNetCore.Mvc.Infrastructure;
 using Microsoft.AspNetCore.Mvc.Razor.TagHelpers;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.AspNetCore.Mvc.TagHelpers;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace Microsoft.Extensions.DependencyInjection
 {
@@ -141,13 +145,21 @@ namespace Microsoft.Extensions.DependencyInjection
         private static IMvcCoreBuilder AddControllersCore(IServiceCollection services)
         {
             // This method excludes all of the view-related services by default.
-            return services
+            var builder = services
                 .AddMvcCore()
                 .AddApiExplorer()
                 .AddAuthorization()
                 .AddCors()
                 .AddDataAnnotations()
                 .AddFormatterMappings();
+
+            if (MetadataUpdater.IsSupported)
+            {
+                services.TryAddEnumerable(
+                    ServiceDescriptor.Singleton<IActionDescriptorChangeProvider, HotReloadService>());
+            }
+
+            return builder;
         }
 
         /// <summary>
@@ -320,6 +332,12 @@ namespace Microsoft.Extensions.DependencyInjection
                 .AddCacheTagHelper();
 
             AddTagHelpersFrameworkParts(builder.PartManager);
+
+            if (MetadataUpdater.IsSupported)
+            {
+                services.TryAddEnumerable(
+                    ServiceDescriptor.Singleton<IActionDescriptorChangeProvider, HotReloadService>());
+            }
 
             return builder;
         }
