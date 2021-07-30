@@ -1,6 +1,7 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
+using System.Diagnostics.Tracing;
 using System.Globalization;
 using System.Net;
 using System.Net.Http;
@@ -738,6 +739,53 @@ namespace Interop.FunctionalTests.Http3
                             options.IdleTimeout = TimeSpan.FromSeconds(20);
                         });
                 });
+        }
+
+        private sealed class EventSourceListener : EventListener
+        {
+            private readonly StringBuilder _messageBuilder = new StringBuilder();
+            private readonly ITestOutputHelper _output;
+
+            public EventSourceListener(ITestOutputHelper output)
+            {
+                _output = output;
+            }
+
+            protected override void OnEventSourceCreated(EventSource eventSource)
+            {
+                base.OnEventSourceCreated(eventSource);
+
+                if (eventSource.Name.Contains("System.Net.Quic") ||
+                    eventSource.Name.Contains("System.Net.Http"))
+                {
+                    EnableEvents(eventSource, EventLevel.LogAlways, EventKeywords.All);
+                }
+            }
+
+            protected override void OnEventWritten(EventWrittenEventArgs eventData)
+            {
+                base.OnEventWritten(eventData);
+
+                string message;
+                lock (_messageBuilder)
+                {
+                    _messageBuilder.Append("<- Event ");
+                    _messageBuilder.Append(eventData.EventSource.Name);
+                    _messageBuilder.Append(" - ");
+                    _messageBuilder.Append(eventData.EventName);
+                    _messageBuilder.Append(" : ");
+                    _messageBuilder.AppendJoin(',', eventData.Payload!);
+                    _messageBuilder.Append(" ->");
+                    message = _messageBuilder.ToString();
+                    _messageBuilder.Clear();
+                }
+                _output.WriteLine(message);
+            }
+
+            public override string ToString()
+            {
+                return _messageBuilder.ToString();
+            }
         }
     }
 }
