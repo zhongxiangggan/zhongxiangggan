@@ -317,7 +317,6 @@ namespace Microsoft.Extensions.DependencyInjection
             }
 
             return new MvcBuilder(builder.Services, builder.PartManager);
-
         }
 
         private static IMvcCoreBuilder AddRazorPagesCore(IServiceCollection services)

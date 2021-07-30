@@ -11,6 +11,8 @@ using Microsoft.AspNetCore.Mvc.ModelBinding.Metadata;
 using Microsoft.AspNetCore.Mvc.Razor;
 using Microsoft.AspNetCore.Mvc.Razor.Compilation;
 using Microsoft.Extensions.Primitives;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.AspNetCore.Mvc.Razor.TagHelpers;
 
 [assembly: MetadataUpdateHandler(typeof(Microsoft.AspNetCore.Mvc.HotReload.HotReloadService))]
 
@@ -20,15 +22,17 @@ namespace Microsoft.AspNetCore.Mvc.HotReload
     {
         private readonly DefaultModelMetadataProvider? _modelMetadataProvider;
         private readonly DefaultControllerPropertyActivator? _controllerPropertyActivator;
-        private readonly DefaultViewCompiler? _defaultViewCompiler;
+        private readonly DefaultViewCompilerProvider? _defaultViewCompilerCompiler;
         private readonly RazorViewEngine? _razorViewEngine;
+        private readonly RazorPageActivator? _razorPageActivator;
+        private readonly DefaultTagHelperFactory? _defaultTagHelperFactory;
+        private readonly TagHelperComponentPropertyActivator? _tagHelperComponentPropertyActivator;
         private CancellationTokenSource _tokenSource = new();
 
         public HotReloadService(
+            IServiceProvider serviceProvider,
             IModelMetadataProvider modelMetadataProvider,
-            IControllerPropertyActivator controllerPropertyActivator,
-            IViewCompiler razorViewCompiler,
-            IRazorViewEngine razorViewEngine)
+            IControllerPropertyActivator controllerPropertyActivator)
         {
             ClearCacheEvent += NotifyClearCache;
             if (modelMetadataProvider.GetType() == typeof(DefaultModelMetadataProvider))
@@ -41,14 +45,30 @@ namespace Microsoft.AspNetCore.Mvc.HotReload
                 _controllerPropertyActivator = defaultControllerPropertyActivator;
             }
 
-            if (razorViewCompiler is DefaultViewCompiler defaultViewCompiler)
+            // For Razor view services, use the service locator pattern because they views not be registered by default.
+            if (serviceProvider.GetService<IViewCompilerProvider>() is DefaultViewCompilerProvider defaultViewCompilerCompiler)
             {
-                _defaultViewCompiler = defaultViewCompiler;
+                _defaultViewCompilerCompiler = defaultViewCompilerCompiler;
             }
 
-            if (razorViewEngine.GetType() == typeof(RazorViewEngine))
+            if (serviceProvider.GetService<IRazorViewEngine>() is { } viewEngine && viewEngine.GetType()  == typeof(RazorViewEngine))
             {
-                _razorViewEngine = (RazorViewEngine)razorViewEngine;
+                _razorViewEngine = (RazorViewEngine)viewEngine;
+            }
+
+            if (serviceProvider.GetService<IRazorPageActivator>() is { } razorPageActivator && razorPageActivator.GetType() == typeof(RazorPageActivator))
+            {
+                _razorPageActivator = (RazorPageActivator)razorPageActivator;
+            }
+
+            if (serviceProvider.GetService<ITagHelperFactory>() is DefaultTagHelperFactory defaultTagHelperFactory)
+            {
+                _defaultTagHelperFactory = defaultTagHelperFactory;
+            }
+
+            if (serviceProvider.GetService<ITagHelperComponentPropertyActivator>() is TagHelperComponentPropertyActivator tagHelperComponentPropertyActivator)
+            {
+                _tagHelperComponentPropertyActivator = tagHelperComponentPropertyActivator;
             }
         }
 
@@ -70,8 +90,15 @@ namespace Microsoft.AspNetCore.Mvc.HotReload
             // Clear individual caches
             _modelMetadataProvider?.ClearCache();
             _controllerPropertyActivator?.ClearCache();
-            _defaultViewCompiler?.ClearCache(changedTypes);
+            if (_defaultViewCompilerCompiler?.GetCompiler() is DefaultViewCompiler compiler)
+            {
+                compiler.ClearCache(changedTypes);
+            }
+
             _razorViewEngine?.ClearCache();
+            _razorPageActivator?.ClearCache();
+            _defaultTagHelperFactory?.ClearCache();
+            _tagHelperComponentPropertyActivator?.ClearCache();
         }
 
         public void Dispose()

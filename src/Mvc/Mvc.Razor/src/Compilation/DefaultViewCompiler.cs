@@ -73,19 +73,19 @@ namespace Microsoft.AspNetCore.Mvc.Razor.Compilation
         }
 
         // Invoked as part of a hot reload event.
-        internal void ClearCache(Type[]? types)
+        internal void ClearCache(Type[]? changedTypes)
         {
-            if (types is null)
+            if (changedTypes is null)
             {
                 return;
             }
 
-            foreach (var type in types)
+            foreach (var type in changedTypes)
             {
                 if (type.GetCustomAttribute<RazorFileIdentifierAttribute>() is { } attribute)
                 {
                     var found = _compiledViews.TryGetValue(attribute.Identifier, out var previous);
-                    Debug.Assert(found, "We'll usually expect a reloadable view to replace an existing one.");
+                    Debug.Assert(found, "We usually expect a reloadable view to replace an existing one.");
                     if (!found)
                     {
                         continue;
@@ -158,7 +158,7 @@ namespace Microsoft.AspNetCore.Mvc.Razor.Compilation
 
             public override string Identifier => _previous.Identifier;
             public override string Kind => _previous.Kind;
-            public override IReadOnlyList<object> Metadata => Type.GetCustomAttributes(inherit: true);
+            public override IReadOnlyList<object> Metadata => _previous.Metadata;
             public override Type Type { get; }
         }
     }

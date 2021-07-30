@@ -36,7 +36,7 @@ namespace Microsoft.AspNetCore.Mvc.Razor.Extensions
         private sealed class AttributesIntermediateNode : ExtensionIntermediateNode
         {
             private const string CreateNewOnMetadataUpdateAttributeName = "global::System.Runtime.CompilerServices.CreateNewOnMetadataUpdateAttribute";
-            private const string RazorFileIdentifierAttribute = "global::Microsoft.AspNetCore.Razor.Runtime.RazorFileIdentifierAttribute";
+            private const string RazorFileIdentifierAttribute = "global::Microsoft.AspNetCore.Razor.Hosting.RazorFileIdentifierAttribute";
             private readonly string _identifier;
 
             public AttributesIntermediateNode(string identifier)
