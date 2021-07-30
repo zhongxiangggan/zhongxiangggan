@@ -2,8 +2,12 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 
 using System;
+using System.Diagnostics;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Routing;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
 namespace Microsoft.AspNetCore.Builder
@@ -95,7 +99,23 @@ namespace Microsoft.AspNetCore.Builder
                 throw new ArgumentNullException(nameof(options));
             }
 
-            return app.UseMiddleware<ExceptionHandlerMiddleware>(Options.Create(options));
+            if (!string.IsNullOrEmpty(options.ExceptionHandlingPath) && options.ExceptionHandler is null && app.Properties.ContainsKey("__EndpointRouteBuilder"))
+            {
+                throw new Exception("UseRouting called before UseExceptionHandler(string)");
+            }
+
+            return app.Use(next =>
+            {
+                if (!app.Properties.ContainsKey("__EndpointRouteBuilder"))
+                {
+                    //throw new Exception("UseRouting not called after UseExceptionHandler(string)");
+                }
+
+                var loggerFactory = app.ApplicationServices.GetRequiredService<ILoggerFactory>();
+                var diagnosticListener = app.ApplicationServices.GetRequiredService<DiagnosticListener>();
+                var endpointDataSource = app.ApplicationServices.GetRequiredService<EndpointDataSource>();
+                return new ExceptionHandlerMiddleware(next, loggerFactory, Options.Create(options), diagnosticListener, endpointDataSource).Invoke;
+            });
         }
     }
 }
