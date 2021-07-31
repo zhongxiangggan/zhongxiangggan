@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Hosting;
 var builder = WebApplication.CreateBuilder(args);
 var app = builder.Build();
 
+app.UseRouting();
 app.UseExceptionHandler("/error");
 
 app.MapGet("/error", () => "oh no!");

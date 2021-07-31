@@ -49,7 +49,7 @@ namespace Microsoft.AspNetCore.Builder
         /// Adds a <see cref="EndpointRoutingMiddleware"/> middleware to the specified <see cref="IApplicationBuilder"/>.
         /// </summary>
         /// <param name="builder">The <see cref="IApplicationBuilder"/> to add the middleware to.</param>
-        /// <param name="createNewEndpointRouteBuilder">Whether a new <see cref="EndpointRouteBuilder"/> should be created.</param>
+        /// <param name="overrideEndpointRouteBuilder">Whether a new <see cref="EndpointRouteBuilder"/> should be created.</param>
         /// <returns>A reference to this instance after the operation has completed.</returns>
         /// <remarks>
         /// <para>
@@ -65,7 +65,7 @@ namespace Microsoft.AspNetCore.Builder
         /// <see cref="Endpoint"/> associated with the <see cref="HttpContext"/>.
         /// </para>
         /// </remarks>
-        public static IApplicationBuilder UseRouting(this IApplicationBuilder builder, bool createNewEndpointRouteBuilder)
+        public static IApplicationBuilder UseRouting(this IApplicationBuilder builder, bool overrideEndpointRouteBuilder)
         {
             if (builder == null)
             {
@@ -75,24 +75,22 @@ namespace Microsoft.AspNetCore.Builder
             VerifyRoutingServicesAreRegistered(builder);
 
             IEndpointRouteBuilder endpointRouteBuilder;
-            if (createNewEndpointRouteBuilder)
+            if (overrideEndpointRouteBuilder)
             {
                 endpointRouteBuilder = new DefaultEndpointRouteBuilder(builder);
                 builder.Properties[EndpointRouteBuilder] = endpointRouteBuilder;
             }
             else
             {
-                if (!builder.Properties.TryGetValue(EndpointRouteBuilder, out var routeBuilder))
+                if (builder.Properties.TryGetValue(EndpointRouteBuilder, out var routeBuilder))
                 {
-                    throw new InvalidOperationException("TODO: No endpoint route builder and createNewEndpointRouteBuilder is false");
+                    endpointRouteBuilder = (IEndpointRouteBuilder)routeBuilder!;
                 }
-
-                if (routeBuilder is not IEndpointRouteBuilder)
+                else
                 {
-                    throw new InvalidOperationException("TODO: endpoint route builder is the wrong type");
+                    endpointRouteBuilder = new DefaultEndpointRouteBuilder(builder);
+                    builder.Properties[EndpointRouteBuilder] = endpointRouteBuilder;
                 }
-
-                endpointRouteBuilder = (IEndpointRouteBuilder)routeBuilder;
             }
 
             return builder.UseMiddleware<EndpointRoutingMiddleware>(endpointRouteBuilder);

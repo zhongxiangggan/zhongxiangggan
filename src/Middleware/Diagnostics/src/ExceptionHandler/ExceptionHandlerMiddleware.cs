@@ -115,7 +115,6 @@ namespace Microsoft.AspNetCore.Diagnostics
             if (_options.ExceptionHandlingPath.HasValue)
             {
                 context.Request.Path = _options.ExceptionHandlingPath;
-
             }
             try
             {

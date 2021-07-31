@@ -108,7 +108,7 @@ namespace Microsoft.AspNetCore.Builder
                 if (!string.IsNullOrEmpty(options.ExceptionHandlingPath) && options.ExceptionHandler is null)
                 {
                     var errorBuilder = app.New();
-                    errorBuilder.UseRouting(createNewEndpointRouteBuilder: false);
+                    errorBuilder.UseRouting(overrideEndpointRouteBuilder: false);
                     errorBuilder.Run(next);
                     options.ExceptionHandler = errorBuilder.Build();
                 }
