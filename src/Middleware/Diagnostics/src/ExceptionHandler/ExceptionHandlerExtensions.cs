@@ -99,22 +99,21 @@ namespace Microsoft.AspNetCore.Builder
                 throw new ArgumentNullException(nameof(options));
             }
 
-            if (!string.IsNullOrEmpty(options.ExceptionHandlingPath) && options.ExceptionHandler is null && app.Properties.ContainsKey("__EndpointRouteBuilder"))
-            {
-                throw new Exception("UseRouting called before UseExceptionHandler(string)");
-            }
-
             return app.Use(next =>
             {
-                if (!app.Properties.ContainsKey("__EndpointRouteBuilder"))
-                {
-                    //throw new Exception("UseRouting not called after UseExceptionHandler(string)");
-                }
-
                 var loggerFactory = app.ApplicationServices.GetRequiredService<ILoggerFactory>();
                 var diagnosticListener = app.ApplicationServices.GetRequiredService<DiagnosticListener>();
                 var endpointDataSource = app.ApplicationServices.GetRequiredService<EndpointDataSource>();
-                return new ExceptionHandlerMiddleware(next, loggerFactory, Options.Create(options), diagnosticListener, endpointDataSource).Invoke;
+
+                if (!string.IsNullOrEmpty(options.ExceptionHandlingPath) && options.ExceptionHandler is null)
+                {
+                    var errorBuilder = app.New();
+                    errorBuilder.UseRouting(createNewEndpointRouteBuilder: false);
+                    errorBuilder.Run(next);
+                    options.ExceptionHandler = errorBuilder.Build();
+                }
+
+                return new ExceptionHandlerMiddleware(next, loggerFactory, Options.Create(options), diagnosticListener).Invoke;
             });
         }
     }

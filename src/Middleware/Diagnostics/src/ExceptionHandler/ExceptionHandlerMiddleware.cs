@@ -8,7 +8,6 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Features;
-using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Microsoft.Net.Http.Headers;
@@ -25,7 +24,6 @@ namespace Microsoft.AspNetCore.Diagnostics
         private readonly ILogger _logger;
         private readonly Func<object, Task> _clearCacheHeadersDelegate;
         private readonly DiagnosticListener _diagnosticListener;
-        private readonly EndpointDataSource _endpointDataSource;
 
         /// <summary>
         /// Creates a new <see cref="ExceptionHandlerMiddleware"/>
@@ -34,20 +32,17 @@ namespace Microsoft.AspNetCore.Diagnostics
         /// <param name="loggerFactory">The <see cref="ILoggerFactory"/> used for logging.</param>
         /// <param name="options">The options for configuring the middleware.</param>
         /// <param name="diagnosticListener">The <see cref="DiagnosticListener"/> used for writing diagnostic messages.</param>
-        /// <param name="endpointDataSource"></param>
         public ExceptionHandlerMiddleware(
             RequestDelegate next,
             ILoggerFactory loggerFactory,
             IOptions<ExceptionHandlerOptions> options,
-            DiagnosticListener diagnosticListener,
-            EndpointDataSource endpointDataSource)
+            DiagnosticListener diagnosticListener)
         {
             _next = next;
             _options = options.Value;
             _logger = loggerFactory.CreateLogger<ExceptionHandlerMiddleware>();
             _clearCacheHeadersDelegate = ClearCacheHeaders;
             _diagnosticListener = diagnosticListener;
-            _endpointDataSource = endpointDataSource;
             if (_options.ExceptionHandler == null)
             {
                 if (_options.ExceptionHandlingPath == null)
@@ -117,17 +112,10 @@ namespace Microsoft.AspNetCore.Diagnostics
             }
 
             PathString originalPath = context.Request.Path;
-            var originalEndpoint = context.GetEndpoint();
-            var exceptionEndpoint = originalEndpoint;
             if (_options.ExceptionHandlingPath.HasValue)
             {
                 context.Request.Path = _options.ExceptionHandlingPath;
-                var endpoint = _endpointDataSource.Endpoints.Where(e => e is RouteEndpoint re && re.RoutePattern.RawText == _options.ExceptionHandlingPath).FirstOrDefault();
 
-                if (endpoint != null)
-                {
-                    exceptionEndpoint = endpoint;
-                }
             }
             try
             {
@@ -135,13 +123,11 @@ namespace Microsoft.AspNetCore.Diagnostics
                 {
                     Error = edi.SourceException,
                     Path = originalPath.Value!,
-                    Endpoint = originalEndpoint,
+                    Endpoint = context.GetEndpoint(),
                     RouteValues = context.Features.Get<IRouteValuesFeature>()?.RouteValues
                 };
 
                 ClearHttpContext(context);
-
-                context.SetEndpoint(exceptionEndpoint);
 
                 context.Features.Set<IExceptionHandlerFeature>(exceptionHandlerFeature);
                 context.Features.Set<IExceptionHandlerPathFeature>(exceptionHandlerFeature);
