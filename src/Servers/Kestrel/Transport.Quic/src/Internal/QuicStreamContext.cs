@@ -157,11 +157,6 @@ namespace Microsoft.AspNetCore.Server.Kestrel.Transport.Quic.Internal
                 // Now wait for both to complete
                 await receiveTask;
                 await sendTask;
-
-                CanReuse = _stream.CanRead && _stream.CanWrite
-                    && _transportPipeReader.IsCompletedSuccessfully
-                    && _transportPipeWriter.IsCompletedSuccessfully
-                    && !_clientAbort;
             }
             catch (Exception ex)
             {
@@ -423,6 +418,12 @@ namespace Microsoft.AspNetCore.Server.Kestrel.Transport.Quic.Internal
 
         public override async ValueTask DisposeAsync()
         {
+            CanReuse = _stream.CanRead && _stream.CanWrite
+                && _transportPipeReader.IsCompletedSuccessfully
+                && _transportPipeWriter.IsCompletedSuccessfully
+                && !_clientAbort
+                && !_serverAborted;
+
             _originalTransport.Input.Complete();
             _originalTransport.Output.Complete();
 
