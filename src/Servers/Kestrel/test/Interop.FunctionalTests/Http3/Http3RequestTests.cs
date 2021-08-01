@@ -101,7 +101,7 @@ namespace Interop.FunctionalTests.Http3
                 request.VersionPolicy = HttpVersionPolicy.RequestVersionExact;
 
                 // Act
-                var responseMessage = await client.SendAsync(request).DefaultTimeout();
+                var responseMessage = await client.SendAsync(request, CancellationToken.None).DefaultTimeout();
 
                 // Assert
                 Assert.Equal("hello, world", await responseMessage.Content.ReadAsStringAsync());
@@ -203,7 +203,7 @@ namespace Interop.FunctionalTests.Http3
                 request.VersionPolicy = HttpVersionPolicy.RequestVersionExact;
 
                 // Act
-                var response = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead);
+                var response = await client.SendAsync(request, CancellationToken.None);
 
                 // Assert
                 response.EnsureSuccessStatusCode();
@@ -248,7 +248,7 @@ namespace Interop.FunctionalTests.Http3
                 request.VersionPolicy = HttpVersionPolicy.RequestVersionExact;
 
                 // Act
-                var responseTask = client.SendAsync(request);
+                var responseTask = client.SendAsync(request, CancellationToken.None);
 
                 var requestStream = await requestContent.GetStreamAsync();
 
@@ -384,7 +384,7 @@ namespace Interop.FunctionalTests.Http3
                 request.VersionPolicy = HttpVersionPolicy.RequestVersionExact;
 
                 // Act
-                var ex = await Assert.ThrowsAnyAsync<HttpRequestException>(() => client.SendAsync(request)).DefaultTimeout();
+                var ex = await Assert.ThrowsAnyAsync<HttpRequestException>(() => client.SendAsync(request, CancellationToken.None)).DefaultTimeout();
 
                 // Assert
                 if (protocol == HttpProtocols.Http3)
@@ -450,7 +450,7 @@ namespace Interop.FunctionalTests.Http3
                 request1.Version = HttpVersion.Version30;
                 request1.VersionPolicy = HttpVersionPolicy.RequestVersionExact;
 
-                var response1 = await client.SendAsync(request1);
+                var response1 = await client.SendAsync(request1, CancellationToken.None);
                 response1.EnsureSuccessStatusCode();
                 var firstRequestState = persistedState;
 
@@ -461,7 +461,7 @@ namespace Interop.FunctionalTests.Http3
                 request2.Version = HttpVersion.Version30;
                 request2.VersionPolicy = HttpVersionPolicy.RequestVersionExact;
 
-                var response2 = await client.SendAsync(request2);
+                var response2 = await client.SendAsync(request2, CancellationToken.None);
                 response2.EnsureSuccessStatusCode();
                 var secondRequestState = persistedState;
 
@@ -502,7 +502,7 @@ namespace Interop.FunctionalTests.Http3
                 request1.Version = HttpVersion.Version30;
                 request1.VersionPolicy = HttpVersionPolicy.RequestVersionExact;
 
-                var response1 = await client.SendAsync(request1);
+                var response1 = await client.SendAsync(request1, CancellationToken.None);
                 response1.EnsureSuccessStatusCode();
 
                 var connectionId1 = connectionId;
@@ -512,7 +512,7 @@ namespace Interop.FunctionalTests.Http3
                 request2.Version = HttpVersion.Version30;
                 request2.VersionPolicy = HttpVersionPolicy.RequestVersionExact;
 
-                var response2 = await client.SendAsync(request2);
+                var response2 = await client.SendAsync(request2, CancellationToken.None);
                 response2.EnsureSuccessStatusCode();
 
                 var connectionId2 = connectionId;
@@ -569,7 +569,7 @@ namespace Interop.FunctionalTests.Http3
                 request1.Version = HttpVersion.Version30;
                 request1.VersionPolicy = HttpVersionPolicy.RequestVersionExact;
 
-                var response1 = await client.SendAsync(request1);
+                var response1 = await client.SendAsync(request1, CancellationToken.None);
                 response1.EnsureSuccessStatusCode();
 
                 // Delay to ensure the stream has enough time to return to pool
@@ -580,7 +580,7 @@ namespace Interop.FunctionalTests.Http3
                 request2.Version = HttpVersion.Version30;
                 request2.VersionPolicy = HttpVersionPolicy.RequestVersionExact;
 
-                var response2 = await client.SendAsync(request2);
+                var response2 = await client.SendAsync(request2, CancellationToken.None);
                 response2.EnsureSuccessStatusCode();
 
                 // Assert
@@ -621,8 +621,17 @@ namespace Interop.FunctionalTests.Http3
                 request1.Version = HttpVersion.Version30;
                 request1.VersionPolicy = HttpVersionPolicy.RequestVersionExact;
 
-                Logger.LogInformation("Client sending request 1");
-                await Assert.ThrowsAsync<HttpRequestException>(() => client.SendAsync(request1));
+
+                // TODO: There is a race between CompleteAsync and Reset.
+                // https://github.com/dotnet/aspnetcore/issues/34915
+                try
+                {
+                    Logger.LogInformation("Client sending request 1");
+                    await client.SendAsync(request1, CancellationToken.None);
+                }
+                catch (HttpRequestException)
+                {
+                }                
 
                 // Delay to ensure the stream has enough time to return to pool
                 await Task.Delay(100);
@@ -632,7 +641,7 @@ namespace Interop.FunctionalTests.Http3
                 request2.VersionPolicy = HttpVersionPolicy.RequestVersionExact;
 
                 Logger.LogInformation("Client sending request 2");
-                var response2 = await client.SendAsync(request2);
+                var response2 = await client.SendAsync(request2, CancellationToken.None);
 
                 // Assert
                 response2.EnsureSuccessStatusCode();
@@ -675,7 +684,7 @@ namespace Interop.FunctionalTests.Http3
                 request1.Version = HttpVersion.Version30;
                 request1.VersionPolicy = HttpVersionPolicy.RequestVersionExact;
 
-                var response1 = await client.SendAsync(request1);
+                var response1 = await client.SendAsync(request1, CancellationToken.None);
                 response1.EnsureSuccessStatusCode();
 
                 // Assert
@@ -726,7 +735,7 @@ namespace Interop.FunctionalTests.Http3
                 request1.Version = HttpVersion.Version30;
                 request1.VersionPolicy = HttpVersionPolicy.RequestVersionExact;
 
-                var response1 = await client.SendAsync(request1);
+                var response1 = await client.SendAsync(request1, CancellationToken.None);
                 response1.EnsureSuccessStatusCode();
 
                 // Assert
@@ -742,12 +751,12 @@ namespace Interop.FunctionalTests.Http3
             }
         }
 
-        private static HttpClient CreateClient()
+        private static HttpMessageInvoker CreateClient()
         {
             var httpHandler = new HttpClientHandler();
             httpHandler.ServerCertificateCustomValidationCallback = HttpClientHandler.DangerousAcceptAnyServerCertificateValidator;
 
-            return new HttpClient(httpHandler);
+            return new HttpMessageInvoker(httpHandler);
         }
 
         private IHostBuilder CreateHostBuilder(RequestDelegate requestDelegate, HttpProtocols? protocol = null, Action<KestrelServerOptions> configureKestrel = null)
@@ -789,7 +798,7 @@ namespace Interop.FunctionalTests.Http3
                         {
                             options.MaxReadBufferSize = maxReadBufferSize;
                             options.Alpn = "h3";
-                            options.IdleTimeout = TimeSpan.FromSeconds(20);
+                            options.IdleTimeout = TimeSpan.FromMinutes(5);
                         });
                 });
         }
